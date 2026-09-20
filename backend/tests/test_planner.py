@@ -1,0 +1,203 @@
+"""Scenario tests from the PRD's acceptance table, plus edge cases."""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
+from hos import DutyStatus, HOSPlanningError, StopType, plan_trip
+from tests.conftest import CENTRAL, two_leg_route
+from tests.invariants import assert_all_invariants
+
+
+def stop_types(plan) -> list[StopType]:
+    return [stop.stop_type for stop in plan.stops]
+
+
+def count(plan, stop_type: StopType) -> int:
+    return sum(1 for stop in plan.stops if stop.stop_type is stop_type)
+
+
+# --- the PRD scenario table ------------------------------------------------
+
+
+def test_short_trip_fits_in_one_day(short_route, start):
+    plan = plan_trip(short_route, cycle_hours_used=0.0, start_datetime=start)
+
+    assert_all_invariants(plan, 0.0)
+    assert plan.summary.total_days == 1
+    assert count(plan, StopType.DAILY_RESET) == 0
+    assert count(plan, StopType.FUEL) == 0
+    assert stop_types(plan) == [StopType.START, StopType.PICKUP, StopType.DROPOFF]
+
+
+def test_standard_multi_day_trip(standard_route, start):
+    plan = plan_trip(standard_route, cycle_hours_used=20.0, start_datetime=start)
+
+    assert_all_invariants(plan, 20.0)
+    assert plan.summary.total_days >= 2
+    assert count(plan, StopType.DAILY_RESET) >= 1
+    assert count(plan, StopType.FUEL) >= 1
+    assert plan.summary.total_distance_miles == pytest.approx(1153.4, abs=0.1)
+
+
+def test_long_haul_needs_several_fuel_stops(long_haul_route, start):
+    plan = plan_trip(long_haul_route, cycle_hours_used=0.0, start_datetime=start)
+
+    assert_all_invariants(plan, 0.0)
+    assert count(plan, StopType.FUEL) >= 3
+    assert plan.summary.total_days >= 5
+    # 3,444 miles at 55 mph is 62.6 driving hours; with 3.5 hours of loading,
+    # unloading and fuelling that is 66.1 on duty -- just inside the 70-hour cycle.
+    assert plan.summary.total_on_duty_hours < 70.0
+    assert count(plan, StopType.CYCLE_RESTART) == 0
+
+
+def test_long_haul_with_hours_already_used_needs_a_restart(long_haul_route, start):
+    plan = plan_trip(long_haul_route, cycle_hours_used=20.0, start_datetime=start)
+
+    assert_all_invariants(plan, 20.0)
+    assert count(plan, StopType.CYCLE_RESTART) >= 1
+    restart = next(s for s in plan.stops if s.stop_type is StopType.CYCLE_RESTART)
+    assert restart.duration_hours == 34.0
+
+
+def test_near_cycle_limit_inserts_restart_early(standard_route, start):
+    plan = plan_trip(standard_route, cycle_hours_used=68.0, start_datetime=start)
+
+    assert_all_invariants(plan, 68.0)
+    restarts = [s for s in plan.stops if s.stop_type is StopType.CYCLE_RESTART]
+    assert restarts, "expected a 34-hour restart with only 2 cycle hours left"
+    # Two hours of driving, then the cycle is done.
+    assert restarts[0].arrival_time - start <= timedelta(hours=2)
+
+
+def test_at_cycle_limit_opens_with_a_restart(standard_route, start):
+    plan = plan_trip(standard_route, cycle_hours_used=70.0, start_datetime=start)
+
+    assert_all_invariants(plan, 70.0)
+    first = plan.events[0]
+    assert first.stop_type is StopType.CYCLE_RESTART
+    assert first.start == start
+    assert first.duration_hours == 34.0
+    assert first.status is DutyStatus.OFF_DUTY
+
+
+def test_midnight_boundary_split(standard_route):
+    late = datetime(2026, 9, 22, 22, 0, tzinfo=CENTRAL)
+    plan = plan_trip(standard_route, cycle_hours_used=0.0, start_datetime=late)
+
+    assert_all_invariants(plan, 0.0)
+    first_day = plan.log_days[0]
+    assert first_day.date.isoformat() == "2026-09-22"
+    assert first_day.entries[-1].end_time.astimezone(CENTRAL).hour == 0
+    assert first_day.entries[-1].end_time.astimezone(CENTRAL).day == 23
+    # 22 hours off duty before departure, then two hours of work before midnight.
+    assert first_day.totals[DutyStatus.OFF_DUTY] == pytest.approx(22.0)
+
+
+def test_identical_pickup_and_dropoff_is_rejected():
+    legs = two_leg_route(120.0, 0.0)
+    with pytest.raises(HOSPlanningError, match="no distance"):
+        plan_trip(legs, 0.0, datetime(2026, 9, 22, 6, 0, tzinfo=CENTRAL))
+
+
+# --- engine behaviour ------------------------------------------------------
+
+
+def test_window_starts_at_first_on_duty_not_first_driving_minute(start):
+    """A shift that opens with an hour of loading loses that hour of window."""
+    legs = two_leg_route(1.0, 900.0)
+    plan = plan_trip(legs, 0.0, start)
+
+    assert_all_invariants(plan, 0.0)
+    first_shift_driving = [
+        e
+        for e in plan.events
+        if e.status is DutyStatus.DRIVING and e.start - start < timedelta(hours=14)
+    ]
+    last_drive_end = first_shift_driving[-1].end
+    assert last_drive_end - start <= timedelta(hours=14)
+
+
+def test_break_is_cumulative_not_consecutive(start):
+    """Driving 4h, resting 15 min, driving 4h must still trigger the break."""
+    legs = two_leg_route(550.0, 550.0)  # 10h driving each leg
+    plan = plan_trip(legs, 0.0, start)
+
+    assert_all_invariants(plan, 0.0)
+    assert count(plan, StopType.REST_BREAK) >= 1
+
+
+def test_one_hour_loading_satisfies_a_due_break(start):
+    """The pickup is 60 minutes of non-driving time, so no separate break is needed."""
+    legs = two_leg_route(440.0, 165.0)  # 8h then 3h
+    plan = plan_trip(legs, 0.0, start)
+
+    assert_all_invariants(plan, 0.0)
+    pickup = next(s for s in plan.stops if s.stop_type is StopType.PICKUP)
+    after_pickup = [s for s in plan.stops if s.arrival_time > pickup.departure_time]
+    assert not any(s.stop_type is StopType.REST_BREAK for s in after_pickup)
+
+
+def test_fuel_stop_counts_as_the_required_break(start):
+    """A 30-minute fuel stop is non-driving time, so it clears the break counter."""
+    legs = two_leg_route(50.0, 1200.0)
+    plan = plan_trip(legs, 0.0, start)
+
+    assert_all_invariants(plan, 0.0)
+    assert count(plan, StopType.FUEL) >= 1
+
+
+def test_every_stop_carries_a_reason(standard_route, start):
+    plan = plan_trip(standard_route, 20.0, start)
+    for stop in plan.stops:
+        assert stop.reason, f"stop {stop.sequence} ({stop.stop_type}) has no reason string"
+
+
+def test_stops_are_sequentially_numbered_and_ordered(standard_route, start):
+    plan = plan_trip(standard_route, 20.0, start)
+    assert [s.sequence for s in plan.stops] == list(range(1, len(plan.stops) + 1))
+    times = [s.arrival_time for s in plan.stops]
+    assert times == sorted(times)
+
+
+def test_planner_is_deterministic(standard_route, start):
+    first = plan_trip(standard_route, 20.0, start)
+    second = plan_trip(standard_route, 20.0, start)
+    assert first.events == second.events
+    assert first.stops == second.stops
+    assert first.log_days == second.log_days
+
+
+def test_naive_start_datetime_is_rejected(standard_route):
+    with pytest.raises(HOSPlanningError, match="timezone-aware"):
+        plan_trip(standard_route, 0.0, datetime(2026, 9, 22, 6, 0))
+
+
+@pytest.mark.parametrize("cycle_hours", [-1.0, 70.1, 99.0])
+def test_out_of_range_cycle_hours_is_rejected(standard_route, start, cycle_hours):
+    with pytest.raises(HOSPlanningError, match="cycle_hours_used"):
+        plan_trip(standard_route, cycle_hours, start)
+
+
+@pytest.mark.parametrize("cycle_hours", [0.0, 12.5, 40.0, 60.0, 68.0, 69.9, 70.0])
+@pytest.mark.parametrize("hour", [0, 6, 13, 22, 23])
+def test_invariants_hold_across_the_input_space(standard_route, cycle_hours, hour):
+    """The real regression net: every invariant, over a grid of starting states."""
+    start = datetime(2026, 9, 22, hour, 0, tzinfo=CENTRAL)
+    plan = plan_trip(standard_route, cycle_hours, start)
+    assert_all_invariants(plan, cycle_hours)
+
+
+@pytest.mark.parametrize("zone_offset", [-5, -8, 0])
+def test_log_days_respect_the_home_terminal_timezone(standard_route, zone_offset):
+    zone = timezone(timedelta(hours=zone_offset))
+    start = datetime(2026, 9, 22, 23, 30, tzinfo=zone)
+    plan = plan_trip(standard_route, 0.0, start)
+
+    assert_all_invariants(plan, 0.0)
+    for day in plan.log_days:
+        first = day.entries[0].start_time.astimezone(zone)
+        assert (first.hour, first.minute) == (0, 0)
