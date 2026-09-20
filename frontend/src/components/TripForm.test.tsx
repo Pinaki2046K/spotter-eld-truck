@@ -82,11 +82,18 @@ describe('submission', () => {
     expect(screen.getByText('That location is outside the United States.')).toBeInTheDocument()
   })
 
-  it('fills the example trip in one click', async () => {
+  it('plans the example trip in one click, not merely prefills it', async () => {
     const user = userEvent.setup()
-    renderForm()
+    const { onSubmit } = renderForm()
+
     await user.click(screen.getByRole('button', { name: 'Load example trip' }))
+
+    // The fields fill in, so the inputs are visible and editable...
     expect(screen.getByDisplayValue('Chicago, Illinois')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Denver, Colorado')).toBeInTheDocument()
+    // ...and the trip is planned without a second click.
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(onSubmit.mock.calls[0][0].dropoff_location.label).toBe('Denver, Colorado')
+    expect(onSubmit.mock.calls[0][0].cycle_hours_used).toBe(20)
   })
 })

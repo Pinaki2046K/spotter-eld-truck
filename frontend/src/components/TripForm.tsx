@@ -66,6 +66,14 @@ export function TripForm({ onSubmit, pending, fieldError, initial }: TripFormPro
     setPickup(EXAMPLE_TRIP.pickup_location)
     setDropoff(EXAMPLE_TRIP.dropoff_location)
     setCycleHours(String(EXAMPLE_TRIP.cycle_hours_used))
+    // The brief asks for a correct multi-day result in one click, so this
+    // plans straight away rather than only filling the fields in. The payload
+    // comes from the constant, not from the state set above, which React has
+    // not applied yet.
+    onSubmit({
+      ...EXAMPLE_TRIP,
+      start_datetime: toIsoWithOffset(startLocal, -new Date().getTimezoneOffset()),
+    })
   }
 
   const errorFor = (field: string) => (fieldError?.field === field ? fieldError.message : undefined)

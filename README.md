@@ -6,9 +6,15 @@ Give it a start point, a pickup, a dropoff and the hours already used in the cur
 cycle. It returns a routed map, every stop the Hours of Service rules force you to make, and
 one drawn FMCSA driver's daily log per calendar day.
 
-**Live demo:** _TODO — paste the Vercel URL here_ (API: _TODO — the Render URL_)
-**Example trip:** append `?trip=11111111-2222-4333-8444-555555555555` to see a seeded
-Chicago → St. Louis → Denver result with no typing.
+**Live demo:** <https://spotter-eld-planner-phi.vercel.app>
+**API:** <https://spotter-eld-api-9iqz.onrender.com> (`/api/health/`, `/api/trips/{uuid}/`)
+
+**See it work without typing:** press *Load example trip*, or open the seeded trip directly at
+<https://spotter-eld-planner-phi.vercel.app/?trip=11111111-2222-4333-8444-555555555555> —
+Chicago → St. Louis → Denver with 20 cycle hours used.
+
+> The API is on Render's free tier and sleeps after 15 minutes idle, so the first request after a
+> quiet spell takes roughly 50 seconds while the instance boots. Everything after that is fast.
 
 ![The planner: trip form, summary, stop list, routed map](docs/screenshot.png)
 
