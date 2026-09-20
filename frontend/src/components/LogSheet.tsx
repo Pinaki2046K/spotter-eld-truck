@@ -24,6 +24,11 @@ const GRID_BOTTOM = GRID_TOP + ROW_HEIGHT * DUTY_ROWS.length
 const TOTALS_LEFT = GRID_RIGHT
 const REMARKS_TOP = GRID_BOTTOM + 8
 const REMARKS_HEIGHT = 120
+/** Duty changes closer together than this share the row, so they stagger. */
+const REMARK_STAGGER_MINUTES = 45
+const REMARK_STAGGER_WIDTH = (REMARK_STAGGER_MINUTES / 60) * HOUR_WIDTH
+const REMARK_LANES = 3
+const REMARK_LANE_DEPTH = 26
 
 const RULE = INK
 // Text weights here are 400/700 only: jsPDF has no 600-weight Helvetica, and a
@@ -52,8 +57,9 @@ function endHour(iso: string, tz: number): number {
 interface LogSheetProps {
   day: LogDay
   tzOffsetMinutes: number
-  from: string
-  to: string
+  /** Overrides the day's own first/last location. Used only by tests. */
+  from?: string
+  to?: string
   /** Rendered into the header; the real form has a line for it. */
   carrier?: string
   officeAddress?: string
@@ -69,6 +75,12 @@ export function LogSheet({
 }: LogSheetProps) {
   const { month, day: dayOfMonth, year } = splitLogDate(day.date)
 
+  // The form's From and To describe *this day's* run, not the whole trip. Day 2
+  // of a Chicago-to-Denver haul starts wherever the driver shut down, which is
+  // the middle of Kansas, not Chicago.
+  const fromLabel = from ?? day.entries[0]?.location_label ?? ''
+  const toLabel = to ?? day.entries.at(-1)?.location_label ?? fromLabel
+
   // The duty line is one polyline: a horizontal run on each status's row, with
   // the vertical connector falling out of consecutive points sharing an x.
   const points = day.entries.flatMap((entry) => {
@@ -78,15 +90,27 @@ export function LogSheet({
     return [`${start.toFixed(2)},${y}`, `${end.toFixed(2)},${y}`]
   })
 
-  // Remarks: city and state at each status change. Crowded changes are dropped
-  // rather than overprinted -- the stop list carries the complete record.
-  const remarks: { x: number; label: string }[] = []
+  // Remarks: city and state at each duty change.
+  //
+  // Two things crowd this row. A status change that does not move the truck --
+  // arriving somewhere and going on duty there -- repeats the location, so
+  // consecutive duplicates are dropped. And changes close together in time
+  // print on top of each other, so anything within REMARK_STAGGER_MINUTES of
+  // its neighbour drops to a deeper lane rather than being discarded: in a busy
+  // stretch the crowded label is often the one a reader most wants.
+  const remarks: { x: number; label: string; lane: number }[] = []
   for (const entry of day.entries) {
-    const x = xForHour(hoursIntoDay(entry.start_time, tzOffsetMinutes))
-    const previous = remarks.at(-1)
-    if (previous && x - previous.x < 15) continue
     if (!entry.location_label) continue
-    remarks.push({ x, label: entry.location_label })
+    const previous = remarks.at(-1)
+    if (previous && previous.label === entry.location_label) continue
+
+    const x = xForHour(hoursIntoDay(entry.start_time, tzOffsetMinutes))
+    const crowded = previous !== undefined && x - previous.x < REMARK_STAGGER_WIDTH
+    remarks.push({
+      x,
+      label: entry.location_label,
+      lane: crowded ? (previous.lane + 1) % REMARK_LANES : 0,
+    })
   }
 
   const totals: [string, number][] = [
@@ -113,8 +137,8 @@ export function LogSheet({
         month={month}
         dayOfMonth={dayOfMonth}
         year={year}
-        from={from}
-        to={to}
+        from={fromLabel}
+        to={toLabel}
         totalMiles={day.total_miles}
         carrier={carrier}
         officeAddress={officeAddress}
@@ -417,7 +441,7 @@ function TotalsColumn({ totals, grandTotal }: { totals: [string, number][]; gran
   )
 }
 
-function Remarks({ remarks }: { remarks: { x: number; label: string }[] }) {
+function Remarks({ remarks }: { remarks: { x: number; label: string; lane: number }[] }) {
   return (
     <g>
       <rect
@@ -433,27 +457,25 @@ function Remarks({ remarks }: { remarks: { x: number; label: string }[] }) {
         Remarks
       </text>
 
-      {remarks.map(({ x, label }) => (
-        <g key={`${x}-${label}`}>
-          <line
-            x1={x}
-            y1={REMARKS_TOP}
-            x2={x}
-            y2={REMARKS_TOP + 14}
-            stroke={RULE}
-            strokeWidth="0.8"
-          />
-          <text
-            x={x}
-            y={REMARKS_TOP + 18}
-            fontSize="9"
-            fill={RULE}
-            transform={`rotate(90 ${x} ${REMARKS_TOP + 18})`}
-          >
-            {label.length > 24 ? `${label.slice(0, 24)}…` : label}
-          </text>
-        </g>
-      ))}
+      {remarks.map(({ x, label, lane }) => {
+        // A deeper lane means a longer leader line, so a staggered label still
+        // points unambiguously at its own moment on the grid.
+        const leaderEnd = REMARKS_TOP + 14 + lane * REMARK_LANE_DEPTH
+        return (
+          <g key={`${x}-${label}`}>
+            <line x1={x} y1={REMARKS_TOP} x2={x} y2={leaderEnd} stroke={RULE} strokeWidth="0.8" />
+            <text
+              x={x}
+              y={leaderEnd + 4}
+              fontSize="9"
+              fill={RULE}
+              transform={`rotate(90 ${x} ${leaderEnd + 4})`}
+            >
+              {label.length > 22 ? `${label.slice(0, 22)}…` : label}
+            </text>
+          </g>
+        )
+      })}
     </g>
   )
 }

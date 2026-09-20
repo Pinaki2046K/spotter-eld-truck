@@ -6,6 +6,8 @@ point of these tests is the contract, not Nominatim's uptime.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 import pytest
 from django.urls import reverse
 
@@ -212,3 +214,40 @@ def test_geocode_results_are_cached_after_the_first_lookup(client, monkeypatch):
     assert len(calls) == 1, "second lookup should have been served from GeocodeCache"
     assert first == second
     assert first[0].label == "Chicago, Illinois"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("offset", "expected_minutes"),
+    [("-05:00", -300), ("+05:30", 330), ("-08:00", -480), ("Z", 0)],
+    ids=["chicago", "india", "pacific", "utc"],
+)
+def test_the_submitted_offset_survives_to_the_log_sheets(client, offset, expected_minutes):
+    """DRF normalises aware datetimes to UTC, which would silently redraw every
+    sheet in the wrong timezone and split the days at the wrong midnight."""
+    suffix = "Z" if offset == "Z" else offset
+    response = post_trip(client, start_datetime=f"2026-09-22T06:00:00{suffix}")
+
+    assert response.status_code == 201, response.json()
+    body = response.json()
+    assert body["inputs"]["home_timezone_offset_minutes"] == expected_minutes
+
+    # Day one opens at local midnight, whatever that is in UTC.
+    first_entry = body["log_days"][0]["entries"][0]["start_time"]
+    opened = datetime.fromisoformat(first_entry.replace("Z", "+00:00"))
+    local_open = opened + timedelta(minutes=expected_minutes)
+    assert (local_open.hour, local_open.minute) == (0, 0)
+
+
+@pytest.mark.django_db
+def test_a_departure_is_drawn_at_the_hour_it_was_booked(client):
+    """06:00 in the home terminal must read as 06:00 on the sheet, not as the
+    UTC instant it happens to correspond to."""
+    response = post_trip(client, start_datetime="2026-09-22T06:00:00+05:30")
+    body = response.json()
+
+    offset = body["inputs"]["home_timezone_offset_minutes"]
+    start = datetime.fromisoformat(body["summary"]["departure_datetime"].replace("Z", "+00:00"))
+    local = start + timedelta(minutes=offset)
+
+    assert (local.hour, local.minute) == (6, 0)

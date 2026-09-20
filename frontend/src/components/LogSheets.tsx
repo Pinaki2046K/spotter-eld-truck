@@ -100,12 +100,8 @@ export function LogSheets({ trip, tzOffsetMinutes }: { trip: Trip; tzOffsetMinut
             </header>
             {/* Below 768px the sheet scrolls horizontally rather than squashing the grid. */}
             <div className="overflow-x-auto px-3 py-3">
-              <LogSheet
-                day={day}
-                tzOffsetMinutes={tzOffsetMinutes}
-                from={trip.inputs.current_location.label}
-                to={trip.inputs.dropoff_location.label}
-              />
+              {/* From and To come from the day's own entries, not the trip. */}
+              <LogSheet day={day} tzOffsetMinutes={tzOffsetMinutes} />
             </div>
           </article>
         ))}

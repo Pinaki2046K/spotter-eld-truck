@@ -17,16 +17,16 @@ const ROW_Y = {
   ON_DUTY_NOT_DRIVING: GRID_TOP + ROW_HEIGHT * 3.5,
 }
 
-function renderSheet() {
-  const { container } = render(
-    <LogSheet
-      day={DAY_ONE}
-      tzOffsetMinutes={-300}
-      from="Chicago, Illinois"
-      to="Denver, Colorado"
-    />,
-  )
+function renderSheet(day = DAY_ONE) {
+  const { container } = render(<LogSheet day={day} tzOffsetMinutes={-300} />)
   return container
+}
+
+function headerValue(container: HTMLElement, label: string): string {
+  const caption = [...container.querySelectorAll('text')].find((n) => n.textContent === label)
+  // FilledLine draws the value, then the rule, then the caption, in one <g>.
+  const group = caption?.parentElement
+  return group?.querySelector('text')?.textContent ?? ''
 }
 
 function dutyPoints(container: HTMLElement): [number, number][] {
@@ -116,5 +116,65 @@ describe('the sheet as a document', () => {
     )
     expect(remarks).toContain('St. Louis, Missouri')
     expect(remarks).toContain('Topeka, KS')
+  })
+})
+
+describe("the header's From and To", () => {
+  it('describe the day, not the whole trip', () => {
+    const container = renderSheet()
+    // Day 1 runs Chicago to the overnight stop, not Chicago to the dropoff.
+    expect(headerValue(container, 'From')).toBe('Chicago, Illinois')
+    expect(headerValue(container, 'To')).toBe('Topeka, KS')
+  })
+
+  it('start a later day where the driver actually shut down', () => {
+    const dayTwo = {
+      ...DAY_ONE,
+      day_number: 2,
+      date: '2026-09-23',
+      entries: [
+        { ...DAY_ONE.entries[0], location_label: 'Topeka, KS', status: 'SLEEPER_BERTH' as const },
+        { ...DAY_ONE.entries[4], location_label: 'Denver, Colorado' },
+      ],
+    }
+    const container = renderSheet(dayTwo)
+    expect(headerValue(container, 'From')).toBe('Topeka, KS')
+    expect(headerValue(container, 'To')).toBe('Denver, Colorado')
+  })
+})
+
+describe('remarks crowding', () => {
+  function remarkLabels(container: HTMLElement) {
+    return [...container.querySelectorAll('text[transform^="rotate"]')].map((n) => n.textContent)
+  }
+
+  it('drops a repeated location rather than printing it twice', () => {
+    const labels = remarkLabels(renderSheet())
+    // Chicago appears on both the opening off-duty run and the first driving
+    // run; going on duty where you already are is not a new remark.
+    expect(labels.filter((l) => l === 'Chicago, Illinois')).toHaveLength(1)
+  })
+
+  it('staggers labels that fall within 45 minutes instead of dropping one', () => {
+    const base = DAY_ONE.entries[0]
+    const crowded = {
+      ...DAY_ONE,
+      entries: [
+        { ...base, start_time: '2026-09-22T05:00:00Z', location_label: 'Alpha, IL' },
+        { ...base, start_time: '2026-09-22T12:00:00Z', location_label: 'Bravo, MO' },
+        { ...base, start_time: '2026-09-22T12:15:00Z', location_label: 'Charlie, MO' },
+        { ...base, start_time: '2026-09-22T12:30:00Z', location_label: 'Delta, MO' },
+      ],
+    }
+    const container = renderSheet(crowded)
+
+    // Nothing is discarded...
+    expect(remarkLabels(container)).toEqual(['Alpha, IL', 'Bravo, MO', 'Charlie, MO', 'Delta, MO'])
+    // ...and the three crowded ones sit at different depths.
+    const depths = [...container.querySelectorAll('text[transform^="rotate"]')].map((n) =>
+      Number(n.getAttribute('y')),
+    )
+    expect(new Set(depths.slice(1)).size).toBe(3)
+    expect(depths[0]).toBe(depths[1]) // an uncrowded label stays in lane 0
   })
 })

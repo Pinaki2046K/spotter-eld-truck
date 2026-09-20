@@ -1,9 +1,18 @@
-"""Routing with a fallback.
+"""Routing: OSRM, with OpenRouteService as an optional alternative.
 
-OpenRouteService is primary (free key, returns distance and geometry).  If the
-key is missing or ORS is unhealthy we fall back to the public OSRM demo server,
-which needs no key at all.  Two independent providers behind one interface is
-what keeps a hosted demo working when one upstream has a bad day.
+OSRM's public demo server needs no key and no account, and it is what this
+project actually routes with -- locally and in the deployment. That is what
+lets a clone run with nothing to sign up for.
+
+OpenRouteService is kept behind ORS_API_KEY and is currently unused. Setting
+that key promotes it to primary, with OSRM still catching any failure, so two
+independent providers sit behind one interface if a commercial SLA is ever
+wanted. Unset -- the default -- and OSRM serves every route.
+
+The fallback is quiet by design, and quiet failure is its own hazard: every
+fall-through logs at WARNING with the upstream status and body, /api/health/
+reports which provider is live, and each trip records the provider that
+actually served it.
 """
 
 from __future__ import annotations

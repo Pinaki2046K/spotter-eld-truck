@@ -35,12 +35,27 @@ class LocationInputSerializer(serializers.Serializer):
         return Place(**self.validated_data)
 
 
+class HomeTerminalDateTimeField(serializers.DateTimeField):
+    """A DateTimeField that keeps the offset the driver submitted.
+
+    DRF normalises every aware datetime to the current timezone, which is UTC
+    here, discarding the original offset. For this app that offset is data, not
+    presentation: log sheets run midnight to midnight in the *home terminal*
+    timezone, so losing it splits the days at the wrong boundary and renders
+    every time in UTC. A 06:00 departure in Chicago would be drawn as 11:00,
+    and in India as 00:30 the previous night.
+    """
+
+    def enforce_timezone(self, value):
+        return value
+
+
 class TripCreateSerializer(serializers.Serializer):
     current_location = LocationInputSerializer()
     pickup_location = LocationInputSerializer()
     dropoff_location = LocationInputSerializer()
     cycle_hours_used = serializers.FloatField(min_value=0.0, max_value=DEFAULT_CONFIG.CYCLE_HOURS)
-    start_datetime = serializers.DateTimeField(required=False, allow_null=True)
+    start_datetime = HomeTerminalDateTimeField(required=False, allow_null=True)
 
     def validate_cycle_hours_used(self, value: float) -> float:
         return round(value, 1)

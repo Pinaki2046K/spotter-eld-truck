@@ -2,21 +2,12 @@ import { useState } from 'react'
 
 import type { Place, TripRequest } from '../api/types'
 import { EXAMPLE_TRIP } from '../lib/exampleTrip'
-import { toIsoWithOffset } from '../lib/format'
+import { localOffsetMinutes, nextLocalSixAm, toIsoWithOffset } from '../lib/format'
 import { LocationField } from './LocationField'
 
 const CYCLE_LIMIT = 70
 /** Above this, a restart is all but certain; warn before the driver submits. */
 const CYCLE_WARNING_THRESHOLD = 66
-
-function defaultStartLocal(): string {
-  const now = new Date()
-  const next = new Date(now)
-  next.setHours(6, 0, 0, 0)
-  if (next <= now) next.setDate(next.getDate() + 1)
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T06:00`
-}
 
 export interface TripFormInitialValues {
   current_location: Place
@@ -38,7 +29,7 @@ export function TripForm({ onSubmit, pending, fieldError, initial }: TripFormPro
   const [pickup, setPickup] = useState<Place | null>(initial?.pickup_location ?? null)
   const [dropoff, setDropoff] = useState<Place | null>(initial?.dropoff_location ?? null)
   const [cycleHours, setCycleHours] = useState(String(initial?.cycle_hours_used ?? 0))
-  const [startLocal, setStartLocal] = useState(defaultStartLocal)
+  const [startLocal, setStartLocal] = useState(nextLocalSixAm)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [touched, setTouched] = useState(false)
 
@@ -57,7 +48,7 @@ export function TripForm({ onSubmit, pending, fieldError, initial }: TripFormPro
       pickup_location: pickup,
       dropoff_location: dropoff,
       cycle_hours_used: Math.round(cycleValue * 10) / 10,
-      start_datetime: toIsoWithOffset(startLocal, -new Date().getTimezoneOffset()),
+      start_datetime: toIsoWithOffset(startLocal, localOffsetMinutes()),
     })
   }
 
@@ -72,7 +63,7 @@ export function TripForm({ onSubmit, pending, fieldError, initial }: TripFormPro
     // not applied yet.
     onSubmit({
       ...EXAMPLE_TRIP,
-      start_datetime: toIsoWithOffset(startLocal, -new Date().getTimezoneOffset()),
+      start_datetime: toIsoWithOffset(startLocal, localOffsetMinutes()),
     })
   }
 

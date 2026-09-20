@@ -67,3 +67,28 @@ export function toIsoWithOffset(localValue: string, tzOffsetMinutes: number): st
   const withSeconds = localValue.length === 16 ? `${localValue}:00` : localValue
   return `${withSeconds}${sign}${hours}:${minutes}`
 }
+
+/** The browser's current offset, in minutes east of UTC. */
+export function localOffsetMinutes(): number {
+  return -new Date().getTimezoneOffset()
+}
+
+/** The next 06:00 local, as a `datetime-local` input value. */
+export function nextLocalSixAm(): string {
+  const now = new Date()
+  const next = new Date(now)
+  next.setHours(6, 0, 0, 0)
+  if (next <= now) next.setDate(next.getDate() + 1)
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T06:00`
+}
+
+/**
+ * The default departure as an ISO string with an explicit offset.
+ *
+ * Always sent, never left to the server to guess: the backend would fall back
+ * to 06:00 UTC, and that offset is what the log sheets are drawn against.
+ */
+export function defaultStartDatetime(): string {
+  return toIsoWithOffset(nextLocalSixAm(), localOffsetMinutes())
+}

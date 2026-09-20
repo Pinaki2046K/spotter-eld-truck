@@ -9,6 +9,7 @@ import { TripForm } from './components/TripForm'
 import { TripSummaryCard } from './components/TripSummaryCard'
 import { EmptyState, ErrorNotice, ResultSkeleton } from './components/states'
 import { EXAMPLE_TRIP } from './lib/exampleTrip'
+import { defaultStartDatetime } from './lib/format'
 
 /** Leaflet only matters once there is a route to draw. */
 const RouteMap = lazy(() =>
@@ -123,7 +124,11 @@ export default function App() {
             {pending ? <ResultSkeleton /> : null}
 
             {!pending && !trip ? (
-              <EmptyState onLoadExample={() => void submit(EXAMPLE_TRIP)} />
+              <EmptyState
+                onLoadExample={() =>
+                  void submit({ ...EXAMPLE_TRIP, start_datetime: defaultStartDatetime() })
+                }
+              />
             ) : null}
 
             {!pending && trip ? (
