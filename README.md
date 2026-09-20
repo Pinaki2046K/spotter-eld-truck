@@ -29,8 +29,9 @@ git clone <this repo> && cd spotter
 (cd frontend && npm install && npm run dev)
 ```
 
-Open <http://localhost:5173>. No API keys and no database setup: it falls back to SQLite and
-to the public OSRM router. Vite proxies `/api` to Django, so there is no CORS to configure.
+Open <http://localhost:5173>. **No API keys, no signup, no database setup**: routing uses the
+public OSRM server, geocoding uses Nominatim, and the database is SQLite. Vite proxies `/api` to
+Django, so there is no CORS to configure either.
 
 ```bash
 cd backend  && .venv/bin/python -m pytest -q   # 72 tests, engine + API
@@ -41,7 +42,8 @@ cd frontend && npm run test -- --run           # 33 tests, formatting + componen
 
 ```
 Browser ──HTTPS /api──▶ Django + DRF ──▶ Nominatim (geocode, cached)
-   │                         │         └▶ OpenRouteService ──fallback──▶ OSRM
+   │                         │         └▶ OSRM  (routing, no key)
+   │                         │            └▶ OpenRouteService, optional, if ORS_API_KEY is set
    │                         ▼
    │                   HOS engine (pure Python)
    │                         ▼
@@ -176,16 +178,32 @@ a generic failure toast:
 Codes: `GEOCODE_NOT_FOUND`, `OUT_OF_COUNTRY`, `NO_ROUTE`, `INVALID_CYCLE_HOURS`,
 `UPSTREAM_TIMEOUT`, `CYCLE_EXHAUSTED`, `INVALID_INPUT`, `NOT_FOUND`, `INTERNAL`.
 
-Every upstream call has an 8-second timeout and one backed-off retry. Routing tries
-OpenRouteService first and falls back to the public OSRM demo server, which needs no key, so the
-demo keeps working when one provider has a bad day. All third-party keys stay server-side — the
-browser never calls Nominatim or OpenRouteService directly.
+Every upstream call has an 8-second timeout and one backed-off retry.
+
+**Routing runs on the public OSRM demo server, which needs no key and no signup.** That is what
+lets the whole project run locally with nothing to register for. OpenRouteService is kept as an
+optional provider behind the same interface: set `ORS_API_KEY` and it becomes primary, with OSRM
+still catching any failure. Leave it unset — the default — and OSRM serves every route.
+
+The fallback is deliberately quiet, which makes it easy to not notice. Two things make it
+visible: `GET /api/health/` reports which provider is live, and every fallback logs at `WARNING`
+with the upstream status and response body, so a rejected key or a dead host shows up in the logs
+rather than as a mysteriously slower request. `routing_provider` on each trip response records
+which provider actually served it.
+
+All third-party keys stay server-side — the browser never calls Nominatim or OpenRouteService
+directly.
 
 ## Stack
 
 Django 5 + DRF, PostgreSQL in production and SQLite locally, a pure-Python HOS engine, React 19 +
-Vite + TypeScript, Tailwind, `react-leaflet` with OpenStreetMap tiles (no key, no quota),
-`jsPDF` + `svg2pdf.js` for client-side export, pytest and Vitest.
+Vite + TypeScript, Tailwind, `react-leaflet` with OpenStreetMap tiles, `jsPDF` + `svg2pdf.js` for
+client-side export, pytest and Vitest.
+
+Nothing in the default path needs an account. Map tiles, routing (OSRM) and geocoding (Nominatim)
+are all keyless, so `git clone` to a working app is four commands with no signup in between.
+OpenRouteService is wired up as an optional routing provider for anyone who wants a commercial
+SLA behind it, but it is off unless `ORS_API_KEY` is set.
 
 ## Deployment
 
@@ -209,7 +227,8 @@ page load, so the backend is warming while an address is being typed.
 `RENDER_EXTERNAL_HOSTNAME`, and derives `CSRF_TRUSTED_ORIGINS` from them. Two variables are marked
 `sync: false` in the Blueprint and set in the dashboard after the first deploy —
 `CORS_ALLOWED_ORIGINS` (the exact Vercel production origin, never `*`) and the optional
-`ORS_API_KEY`. Without the key, routing falls back to the public OSRM demo server. Frontend:
+`ORS_API_KEY`. The deployment runs on OSRM; `ORS_API_KEY` is only needed to switch the primary
+provider to OpenRouteService. Frontend:
 `VITE_API_BASE_URL`. See `backend/.env.example` and `frontend/.env.example`.
 
 Render's free Postgres is deleted after 30 days, which is fine for a review window but means the
