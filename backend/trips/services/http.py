@@ -35,7 +35,9 @@ def get_json(url: str, *, params: dict | None = None, headers: dict | None = Non
             if response.status_code < 500:
                 response.raise_for_status()
                 return response.json()
-            last_error = requests.HTTPError(f"{response.status_code} from {url}")
+            # Attach the response: the status and body are what make a
+            # fallback diagnosable rather than just "something failed".
+            last_error = requests.HTTPError(f"{response.status_code} from {url}", response=response)
 
         logger.warning("Upstream call to %s failed (attempt %s): %s", url, attempt, last_error)
         if attempt == 1:

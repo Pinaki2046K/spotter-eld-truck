@@ -49,14 +49,42 @@ def route(origin: Coordinate, destination: Coordinate) -> RoutedLeg:
     return leg
 
 
+def describe_upstream_failure(exc: BaseException) -> str:
+    """A one-line reason carrying the status and body where there is one.
+
+    get_json raises `ApiError(...) from last_error`, so the HTTPError holding
+    the response is the cause rather than the exception itself.
+    """
+    cause: BaseException | None = exc
+    seen: set[int] = set()
+    while cause is not None and id(cause) not in seen:
+        seen.add(id(cause))
+        response = getattr(cause, "response", None)
+        if response is not None:
+            body = " ".join(response.text.split())[:200]
+            return f"HTTP {response.status_code}: {body}"
+        cause = cause.__cause__
+    return f"{type(exc).__name__}: {exc}"
+
+
 def _route_uncached(origin: Coordinate, destination: Coordinate) -> RoutedLeg:
-    if settings.ORS_API_KEY:
-        try:
-            return _route_via_ors(origin, destination)
-        except ApiError:
-            raise
-        except Exception:
-            logger.warning("OpenRouteService failed; falling back to OSRM", exc_info=True)
+    if not settings.ORS_API_KEY:
+        logger.info("ORS_API_KEY is not set; routing via OSRM.")
+        return _route_via_osrm(origin, destination)
+
+    try:
+        return _route_via_ors(origin, destination)
+    except Exception as exc:
+        # Everything falls through, including the ApiError that get_json raises
+        # for a 5xx or a timeout. Re-raising those defeated the fallback in
+        # precisely the case it exists for. A NO_ROUTE from ORS falls through
+        # too: OSRM gets a chance, and if it also finds nothing the user still
+        # gets NO_ROUTE, just from the second provider.
+        logger.warning(
+            "OpenRouteService failed, falling back to OSRM. Reason: %s",
+            describe_upstream_failure(exc),
+        )
+
     return _route_via_osrm(origin, destination)
 
 

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
+from django.conf import settings
 from django.db.models import Prefetch
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -60,5 +63,21 @@ def geocode(request):
 
 @api_view(["GET"])
 def health(request):  # noqa: ARG001
-    """Liveness probe. Pinged every 5 minutes so a grader never waits on a cold dyno."""
-    return Response({"status": "ok"})
+    """Liveness probe, and the answer to "which router is actually live?".
+
+    Routing falls back to OSRM silently by design, so without this the only way
+    to know which provider a deployment is using is to create a trip and read
+    `routing_provider` off the response. Reports the configured host, never the
+    key.
+    """
+    return Response(
+        {
+            "status": "ok",
+            "routing": {
+                "primary": "openrouteservice" if settings.ORS_API_KEY else "osrm",
+                "ors_key_configured": bool(settings.ORS_API_KEY),
+                "ors_host": urlparse(settings.ORS_BASE_URL).netloc,
+                "fallback": "osrm",
+            },
+        }
+    )

@@ -133,8 +133,35 @@ def test_naive_start_datetime_is_rejected(client):
 
 
 @pytest.mark.django_db
-def test_health_endpoint(client):
-    assert client.get(reverse("health")).json() == {"status": "ok"}
+def test_health_reports_which_router_is_live(client, settings):
+    """The fallback is silent by design, so the probe has to name the provider."""
+    settings.ORS_API_KEY = "a-real-key"
+    settings.ORS_BASE_URL = "https://api.heigit.org/openrouteservice"
+
+    body = client.get(reverse("health")).json()
+
+    assert body["status"] == "ok"
+    assert body["routing"] == {
+        "primary": "openrouteservice",
+        "ors_key_configured": True,
+        "ors_host": "api.heigit.org",
+        "fallback": "osrm",
+    }
+
+
+@pytest.mark.django_db
+def test_health_says_osrm_when_no_key_is_configured(client, settings):
+    settings.ORS_API_KEY = ""
+    body = client.get(reverse("health")).json()
+
+    assert body["routing"]["primary"] == "osrm"
+    assert body["routing"]["ors_key_configured"] is False
+
+
+@pytest.mark.django_db
+def test_health_never_leaks_the_api_key(client, settings):
+    settings.ORS_API_KEY = "super-secret-key-value"
+    assert "super-secret-key-value" not in client.get(reverse("health")).content.decode()
 
 
 @pytest.mark.django_db
