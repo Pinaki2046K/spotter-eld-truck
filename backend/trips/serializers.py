@@ -186,6 +186,7 @@ class TripSerializer(serializers.ModelSerializer):
             },
             "cycle_hours_used": trip.cycle_hours_used,
             "start_datetime": trip.start_datetime,
+            "home_timezone_offset_minutes": trip.home_timezone_offset_minutes,
         }
 
     def get_summary(self, trip: Trip) -> dict:

@@ -267,8 +267,10 @@ class _Planner:
         miles_per_minute = leg.distance_miles / leg_minutes
         minutes_per_mile = leg_minutes / leg.distance_miles
 
-        self._move_to(index.at_miles(0.0))
-        self.state.label = leg.from_label if leg.sequence == 1 else self.state.label
+        # A leg starts at a named waypoint, so use that name rather than the
+        # nearest gazetteer match -- which can sit across a state line.
+        self.state.position = index.at_miles(0.0)
+        self.state.label = leg.from_label
 
         remaining = leg_minutes
         covered_miles = 0.0

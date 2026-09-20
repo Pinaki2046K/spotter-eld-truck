@@ -33,6 +33,9 @@ class Trip(models.Model):
     cycle_hours_used = models.FloatField()
     start_datetime = models.DateTimeField()
     arrival_datetime = models.DateTimeField()
+    #: Django stores every datetime in UTC, so the home terminal's offset has to
+    #: be persisted separately -- log days are midnight-to-midnight in it.
+    home_timezone_offset_minutes = models.SmallIntegerField(default=0)
 
     total_distance_miles = models.FloatField()
     total_driving_hours = models.FloatField()

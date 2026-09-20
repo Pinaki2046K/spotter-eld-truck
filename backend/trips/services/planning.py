@@ -136,6 +136,7 @@ def _persist(
         cycle_hours_used=cycle_hours_used,
         start_datetime=start_datetime,
         arrival_datetime=summary.arrival_datetime,
+        home_timezone_offset_minutes=int(start_datetime.utcoffset().total_seconds() // 60),
         total_distance_miles=summary.total_distance_miles,
         total_driving_hours=summary.total_driving_hours,
         total_on_duty_hours=summary.total_on_duty_hours,

@@ -1,0 +1,134 @@
+@import 'tailwindcss';
+
+/* Design tokens from DESIGN.md (Apple). One accent colour; the weight ladder
+   is 400 / 600 / 700 with 500 deliberately absent; elevation comes from
+   surface-colour change plus hairlines, never box-shadow. */
+@theme {
+  --color-accent: #0066cc;
+  --color-accent-focus: #0071e3;
+  --color-accent-soft: #e8f1fb;
+
+  --color-canvas: #ffffff;
+  --color-parchment: #f5f5f7;
+  --color-pearl: #fafafc;
+
+  --color-ink: #1d1d1f;
+  --color-ink-80: #333333;
+  --color-ink-48: #7a7a7a;
+
+  --color-hairline: #e0e0e0;
+  --color-divider: #f0f0f0;
+
+  /* Functional palette for duty statuses. The single-accent rule governs
+     chrome, not data encoding -- see README. Four muted tones at comparable
+     saturation, each also carried by an icon and a label so the encoding never
+     depends on colour alone. All clear 4.5:1 on white. */
+  --color-duty-off: #6b7280;
+  --color-duty-sleeper: #4f57a6;
+  --color-duty-driving: #2f6f4f;
+  --color-duty-onduty: #8a5a12;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', system-ui,
+    sans-serif;
+
+  --radius-pill: 9999px;
+  --radius-card: 18px;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-parchment);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* DESIGN.md: body copy runs at 17px, not 16px. */
+    font-size: 17px;
+    line-height: 1.47;
+    letter-spacing: -0.374px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent-focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Reduced motion is honoured globally rather than per-component. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility hairline {
+  border: 1px solid var(--color-hairline);
+}
+
+/* Leaflet ships its own stylesheet; these are the two places it clashes with
+   the design language (heavy shadows, rounded-square popups). */
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--color-parchment);
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: none;
+  border: 1px solid var(--color-hairline);
+}
+
+.leaflet-popup-content {
+  margin: 12px 14px;
+  font-size: 14px;
+  line-height: 1.43;
+}
+
+.leaflet-popup-tip {
+  box-shadow: none;
+  border: 1px solid var(--color-hairline);
+}
+
+.stop-marker-icon {
+  background: transparent;
+  border: 0;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-divider);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: shimmer 1.6s infinite;
+}
