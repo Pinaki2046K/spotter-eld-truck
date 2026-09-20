@@ -143,7 +143,10 @@ NOMINATIM_USER_AGENT = os.environ.get(
     "NOMINATIM_USER_AGENT",
     "SpotterTripPlanner/1.0 (ELD log generator take-home; contact via repository issues)",
 )
-ORS_BASE_URL = os.environ.get("ORS_BASE_URL", "https://api.openrouteservice.org")
+# api.openrouteservice.org was deprecated on 2026-04-28 and its quota is being
+# wound down. The new host needs the /openrouteservice path prefix -- a bare
+# api.heigit.org 404s -- and no trailing slash. The v2 paths are unchanged.
+ORS_BASE_URL = os.environ.get("ORS_BASE_URL", "https://api.heigit.org/openrouteservice")
 OSRM_BASE_URL = os.environ.get("OSRM_BASE_URL", "https://router.project-osrm.org")
 
 if not DEBUG:
