@@ -1,0 +1,47 @@
+# Render Blueprint. Create with: Render dashboard -> New -> Blueprint -> this repo.
+#
+# The free web service spins down after 15 minutes idle, so the first request
+# after a quiet spell pays a cold start. That is accepted deliberately here:
+# the 750 free instance-hours are shared across the workspace, so uptime
+# pinging is switched on by hand at submission time rather than run constantly.
+services:
+  - type: web
+    name: spotter-eld-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: backend
+    healthCheckPath: /api/health/
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: >-
+      python manage.py migrate --noinput &&
+      python manage.py seed_example_trip &&
+      gunicorn config.wsgi --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 30
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: spotter-eld-db
+          property: connectionString
+      # The exact Vercel production origin. Set once the frontend is deployed;
+      # never "*", because this API is open and unauthenticated.
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      # Optional. Without it, routing falls back to the public OSRM demo server.
+      - key: ORS_API_KEY
+        sync: false
+      # Nominatim blocks requests without a descriptive User-Agent and contact.
+      - key: NOMINATIM_USER_AGENT
+        sync: false
+
+databases:
+  - name: spotter-eld-db
+    plan: free
+    region: oregon
+    databaseName: spotter
+    user: spotter

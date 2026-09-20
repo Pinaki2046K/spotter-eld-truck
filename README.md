@@ -6,7 +6,7 @@ Give it a start point, a pickup, a dropoff and the hours already used in the cur
 cycle. It returns a routed map, every stop the Hours of Service rules force you to make, and
 one drawn FMCSA driver's daily log per calendar day.
 
-**Live demo:** _TODO — paste the Vercel URL here_
+**Live demo:** _TODO — paste the Vercel URL here_ (API: _TODO — the Render URL_)
 **Example trip:** append `?trip=11111111-2222-4333-8444-555555555555` to see a seeded
 Chicago → St. Louis → Denver result with no typing.
 
@@ -183,17 +183,31 @@ Vite + TypeScript, Tailwind, `react-leaflet` with OpenStreetMap tiles (no key, n
 
 ## Deployment
 
-Vercel hosts the React build; Railway hosts Django and Postgres. Vercel is a poor fit for Django —
-serverless functions have no persistent process — and Render's free web service sleeps after 15
-minutes, which would make a ~50-second cold start the reviewer's first impression.
+Vercel hosts the React build; Render hosts Django and Postgres, declared as a Blueprint in
+`render.yaml` at the repo root. Create it from the Render dashboard with **New → Blueprint** and
+point it at this repo — the web service, the Postgres instance and the generated `SECRET_KEY` all
+come from that file.
 
-Backend environment: `DATABASE_URL`, `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`,
-`CORS_ALLOWED_ORIGINS` (the exact Vercel domain, never `*`), and optionally `ORS_API_KEY`.
-Frontend: `VITE_API_BASE_URL`. See `backend/.env.example` and `frontend/.env.example`.
+Railway would have been the better fit — no forced sleep — but its free trial no longer covers a
+new project, so this runs on Render's free tier instead. `backend/fly.toml` remains as a fallback
+with `min_machines_running = 1` if a warm process becomes worth the setup.
 
-The release command migrates, collects static files and seeds the example trip. Point a free
-uptime pinger at `/api/health/` on a 5-minute interval; the frontend also fires a health ping on
-page load, so the backend is warm by the time an address has been typed.
+**The free tier's tradeoff, stated plainly:** the web service spins down after 15 minutes idle, so
+a cold visit pays roughly a 50-second start while the instance boots and migrations run. There is
+deliberately no uptime pinger in the repo — the 750 free instance-hours are shared across the
+whole Render workspace, so pinging `/api/health/` every 5 minutes is switched on by hand for the
+review window rather than burning hours continuously. The frontend still fires a health ping on
+page load, so the backend is warming while an address is being typed.
+
+`ALLOWED_HOSTS` needs no configuration: Django trusts `.onrender.com` plus the injected
+`RENDER_EXTERNAL_HOSTNAME`, and derives `CSRF_TRUSTED_ORIGINS` from them. Two variables are marked
+`sync: false` in the Blueprint and set in the dashboard after the first deploy —
+`CORS_ALLOWED_ORIGINS` (the exact Vercel production origin, never `*`) and the optional
+`ORS_API_KEY`. Without the key, routing falls back to the public OSRM demo server. Frontend:
+`VITE_API_BASE_URL`. See `backend/.env.example` and `frontend/.env.example`.
+
+Render's free Postgres is deleted after 30 days, which is fine for a review window but means the
+demo is not a durable store.
 
 ## Repository
 

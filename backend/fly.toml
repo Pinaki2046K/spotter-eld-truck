@@ -1,5 +1,6 @@
-# Fallback host, used only if Railway's monthly credit runs out mid-review.
-# min_machines_running = 1 keeps a warm process, which is the whole point.
+# Fallback host. The app runs on Render's free tier, which sleeps after 15
+# minutes idle; min_machines_running = 1 here keeps a warm process if that cold
+# start ever becomes worth paying for.
 app = "spotter-trip-planner"
 primary_region = "ord"
 

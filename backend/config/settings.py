@@ -26,13 +26,28 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "insecure-development-key-do-not-deplo
 DEBUG = _env_bool("DEBUG", True)
 
 ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS") or (["*"] if DEBUG else [])
-# Railway and Fly inject the public hostname; trust it without hand-editing config.
+
+# Render assigns the hostname at create time and Fly derives it from the app
+# name, so neither is known when this file is written. Trust what the host
+# injects rather than requiring a hand-edited variable on every redeploy.
+if os.environ.get("RENDER"):
+    ALLOWED_HOSTS.append(".onrender.com")
+    external = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+    if external:
+        ALLOWED_HOSTS.append(external)
 for variable in ("RAILWAY_PUBLIC_DOMAIN", "FLY_APP_NAME"):
     host = os.environ.get(variable)
     if host:
         ALLOWED_HOSTS.append(host if "." in host else f"{host}.fly.dev")
 
-CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host != "*"]
+
+def _csrf_origin(host: str) -> str:
+    """A leading-dot ALLOWED_HOSTS entry is a subdomain wildcard; CSRF spells
+    the same thing with an explicit asterisk."""
+    return f"https://*{host}" if host.startswith(".") else f"https://{host}"
+
+
+CSRF_TRUSTED_ORIGINS = [_csrf_origin(host) for host in ALLOWED_HOSTS if host != "*"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
