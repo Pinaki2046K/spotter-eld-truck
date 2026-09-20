@@ -123,9 +123,7 @@ export default function App() {
             {pending ? <ResultSkeleton /> : null}
 
             {!pending && !trip ? (
-              <EmptyState
-                onLoadExample={() => void submit(EXAMPLE_TRIP)}
-              />
+              <EmptyState onLoadExample={() => void submit(EXAMPLE_TRIP)} />
             ) : null}
 
             {!pending && trip ? (
