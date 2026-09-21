@@ -37,8 +37,8 @@ Django, so there is no CORS to configure either. The two exported variables are 
 fails safe rather than running in debug mode on a key published in this repo.
 
 ```bash
-cd backend  && .venv/bin/python -m pytest -q   # 104 tests, engine + API + settings
-cd frontend && npm run test -- --run           # 55 tests, formatting + components, app
+cd backend  && .venv/bin/python -m pytest -q   # 110 tests, engine + API + settings
+cd frontend && npm run test -- --run           # 75 tests, formatting + components, app
 ```
 
 ## How it works
@@ -79,7 +79,7 @@ All arithmetic is in whole minutes. That is what makes the totals come out at 24
 | Driving limit | 11 hours driving | 10 consecutive hours off | §395.3(a)(3) |
 | Driving window | 14 consecutive hours from first on-duty | 10 consecutive hours off | §395.3(a)(2) |
 | Rest break | 30 consecutive minutes after 8 **cumulative** driving hours | any 30-minute non-driving period | §395.3(a)(3)(ii) |
-| Cycle limit | 70 on-duty hours in 8 days | 34 consecutive hours off | §395.3(b) |
+| Cycle limit | no **driving** after 70 on-duty hours in 8 days | 34 consecutive hours off | §395.3(b) |
 | Fuelling | at least every 1,000 miles | — | brief |
 
 Two details that are commonly got wrong, and are tested explicitly:
@@ -91,6 +91,9 @@ Two details that are commonly got wrong, and are tested explicitly:
   be taken off duty, on duty not driving, or in the sleeper berth. So the 1-hour pickup and the
   30-minute fuel stop both satisfy it when it falls due — which is why a compliant day often has
   no separate break stop.
+- The 70-hour limit forbids **driving**, not being on duty. A trip that reaches 70 hours as it
+  pulls into the dropoff unloads straight away; the 34-hour restart is only ever scheduled before
+  the next minute behind the wheel.
 
 ## Assumptions
 
@@ -108,6 +111,9 @@ Mine, not the brief's:
 
 - **Average truck speed 55 mph.** Routing APIs return car durations. Distance comes from the API;
   driving time is `distance / 55`. Defensible, and it removes a class of accuracy complaints.
+- **A 15-minute vehicle inspection opens and closes every shift** (pre-trip and post-trip, on
+  duty not driving), as on the completed log in FMCSA's driver's guide. The pre-trip opens the
+  14-hour window, like any on-duty time.
 - **Fuel stop duration 30 minutes**, on duty not driving. The brief gives the frequency but not
   the duration. 30 minutes is chosen because it also satisfies the 30-minute break requirement
   when that falls due.
@@ -119,9 +125,11 @@ Mine, not the brief's:
   the engine (`backend/hos/data/`), not from reverse geocoding. One Nominatim round trip per stop
   against a 1 req/sec limit would blow the 10-second budget on its own; this is ~0.1 ms per lookup
   and keeps the engine offline and deterministic.
-- **Log days are midnight-to-midnight in the departure timezone**, which is treated as the home
-  terminal timezone. The offset is persisted on the trip, because Django stores every datetime in
-  UTC and a log sheet drawn in UTC would put a Chicago driver's midnight at 19:00.
+- **Log days are midnight-to-midnight in the planner's own timezone**, treated as the home
+  terminal timezone: the departure time is entered in the browser's local time, and sent with
+  the UTC offset in force *on the departure date*, so a trip planned across a daylight-saving
+  change is not an hour off. The offset is persisted on the trip, because Django stores every
+  datetime in UTC and a log sheet drawn in UTC would put a Chicago driver's midnight at 19:00.
 
 ## Deliberately out of scope
 
@@ -152,7 +160,11 @@ four clear 4.5:1 on white.
 
 Log sheets are **inline SVG**, not canvas and not an overlay on the supplied PNG: coordinates are
 computed from grid constants rather than eyeballed against a raster, the sheet stays sharp at any
-zoom, and it exports straight to a vector PDF. The one concession is that the SVG uses literal hex
+zoom, and it exports straight to a vector PDF. Its fields follow the blank paper log: both mileage
+boxes, carrier and home-terminal lines, shipper and commodity, and the 70-hour/8-day recap
+(columns A, B and C; A and C are the same running total, because prior cycle hours are entered as
+one number). Remarks are a numbered marker at every change of duty status, keyed to a list giving
+the time, the city and state abbreviation, and the activity. The one concession is that the SVG uses literal hex
 colours rather than CSS variables — `svg2pdf.js` resolves paint attributes itself and never runs
 the cascade, so a variable would export as black (`frontend/src/lib/colors.ts`).
 
