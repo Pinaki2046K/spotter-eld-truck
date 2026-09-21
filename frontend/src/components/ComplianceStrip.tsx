@@ -100,9 +100,12 @@ export function ComplianceStrip({ compliance }: { compliance: Compliance }) {
   return (
     <section
       aria-label="Hours of Service compliance"
-      className="rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-white px-4 py-3.5"
+      className="@container rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-white px-4 py-3.5"
     >
-      <div className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
+      {/* Container query, not a viewport one: at desktop this strip sits in a
+          356px column, where a viewport-keyed `sm:grid-cols-4` gave four 66px
+          cells and clipped every label. */}
+      <div className="grid grid-cols-2 gap-x-5 gap-y-4 @xl:grid-cols-4">
         {limits.map((limit) => (
           <Gauge key={limit.label} limit={limit} />
         ))}

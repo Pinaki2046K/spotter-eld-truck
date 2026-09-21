@@ -24,7 +24,7 @@ export function TripSummaryCard({
         <button
           type="button"
           onClick={onEdit}
-          className="rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-pearl)] px-4 py-1.5 text-[13px] font-semibold text-[var(--color-accent)] transition-transform active:scale-[0.98]"
+          className="min-h-[44px] rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-pearl)] px-5 text-[13px] font-semibold text-[var(--color-accent)] transition-transform active:scale-[0.98]"
         >
           Edit
         </button>

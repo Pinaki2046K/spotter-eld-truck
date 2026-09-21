@@ -47,7 +47,7 @@ export function LogSheets({ trip, tzOffsetMinutes }: { trip: Trip; tzOffsetMinut
           type="button"
           onClick={downloadPdf}
           disabled={exporting}
-          className="rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-white px-5 py-2.5 text-[14px] font-semibold text-[var(--color-accent)] transition-transform active:scale-[0.98] disabled:opacity-50"
+          className="min-h-[44px] rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-white px-5 text-[14px] font-semibold text-[var(--color-accent)] transition-transform active:scale-[0.98] disabled:opacity-50"
         >
           {exporting ? 'Building PDF…' : 'Download PDF'}
         </button>
@@ -68,7 +68,7 @@ export function LogSheets({ trip, tzOffsetMinutes }: { trip: Trip; tzOffsetMinut
             <a
               key={day.day_number}
               href={`#log-day-${day.day_number}`}
-              className="shrink-0 rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-white px-3.5 py-1.5 text-[13px] whitespace-nowrap"
+              className="flex min-h-[44px] shrink-0 items-center rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-white px-4 text-[13px] whitespace-nowrap"
             >
               Day {day.day_number}
               <span className="ml-1.5 text-[var(--color-ink-48)]">

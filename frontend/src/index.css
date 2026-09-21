@@ -112,6 +112,18 @@
   border: 0;
 }
 
+/* Leaflet's zoom buttons are 30px, below the 44px touch minimum. Enlarged only
+   for coarse pointers so the desktop chrome keeps its intended proportions. */
+@media (pointer: coarse) {
+  .leaflet-touch .leaflet-bar a,
+  .leaflet-bar a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+    font-size: 22px;
+  }
+}
+
 @keyframes shimmer {
   100% {
     transform: translateX(100%);
