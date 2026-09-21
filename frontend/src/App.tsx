@@ -76,6 +76,28 @@ export default function App() {
     }
   }, [])
 
+  /**
+   * Back to the empty state. The trip lives only in the ?trip= URL (that is
+   * what makes it shareable), so dropping the query string is the whole reset;
+   * the trip itself stays retrievable at its old link. replaceState, not
+   * pushState: nothing listens for popstate, so Back would restore the old URL
+   * over an empty page.
+   */
+  const reset = useCallback(() => {
+    setTrip(null)
+    setError(null)
+    setLastRequest(null)
+    setHighlighted(null)
+    setFocused(null)
+    setEditing(false)
+    window.history.replaceState({}, '', window.location.pathname)
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0 })
+      // The button that had focus is gone; land keyboard users on the form.
+      formRef.current?.querySelector<HTMLElement>('h2')?.focus()
+    })
+  }, [])
+
   const tz = trip?.inputs.home_timezone_offset_minutes ?? 0
   const fieldError = error?.field ? { field: error.field, message: error.message } : null
 
@@ -95,10 +117,16 @@ export default function App() {
           <div ref={formRef} className="lg:col-span-1">
             <div className="rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-white p-5 lg:sticky lg:top-6">
               {trip && !editing && !pending ? (
-                <TripSummaryCard inputs={trip.inputs} onEdit={() => setEditing(true)} />
+                <TripSummaryCard
+                  inputs={trip.inputs}
+                  onEdit={() => setEditing(true)}
+                  onReset={reset}
+                />
               ) : (
                 <>
-                  <h2 className="text-[19px]">Trip</h2>
+                  <h2 tabIndex={-1} className="text-[19px] outline-none">
+                    Trip
+                  </h2>
                   <p className="mt-1 mb-5 text-[13.5px] text-[var(--color-ink-48)]">
                     Three US locations and the hours already used this cycle.
                   </p>

@@ -3,13 +3,16 @@ import type { Trip } from '../api/types'
 /**
  * Once a trip is planned the form collapses to this, so the result gets the
  * screen but the inputs stay one click away and nothing is lost on a re-plan.
+ * Reset is the other way out: back to an empty form and no result.
  */
 export function TripSummaryCard({
   inputs,
   onEdit,
+  onReset,
 }: {
   inputs: Trip['inputs']
   onEdit: () => void
+  onReset: () => void
 }) {
   const legs = [
     { label: 'From', value: inputs.current_location.label },
@@ -21,13 +24,23 @@ export function TripSummaryCard({
     <div>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-[19px]">Trip</h2>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="min-h-[44px] rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-pearl)] px-5 text-[13px] font-semibold text-[var(--color-accent)] transition-transform active:scale-[0.98]"
-        >
-          Edit
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onReset}
+            aria-label="Reset: clear this trip and start a new one"
+            className="min-h-[44px] rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-white px-5 text-[13px] font-semibold text-[var(--color-ink-80)] transition-transform active:scale-[0.98]"
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            onClick={onEdit}
+            className="min-h-[44px] rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-pearl)] px-5 text-[13px] font-semibold text-[var(--color-accent)] transition-transform active:scale-[0.98]"
+          >
+            Edit
+          </button>
+        </div>
       </div>
 
       <ol className="mt-4 flex flex-col gap-3">
