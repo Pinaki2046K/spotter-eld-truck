@@ -11,7 +11,7 @@ byte-identical across runs.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 
 from .config import DEFAULT_CONFIG, MIN_SEGMENT_MIN, HOSConfig
@@ -131,6 +131,14 @@ class _Planner:
             return
         state = self.state
         end = state.clock + timedelta(minutes=minutes)
+        # Any non-driving period of 30 minutes or more satisfies 395.3(a)(3)(ii).
+        # A 10-hour reset does too, but calling that "the break" would be
+        # misleading, so only in-shift pauses are credited.
+        satisfies_break = (
+            status is not DutyStatus.DRIVING
+            and self.cfg.break_min <= minutes < self.cfg.daily_reset_min
+            and state.driving_since_break_min > 0
+        )
         self.events.append(
             Event(
                 status=status,
@@ -144,6 +152,7 @@ class _Planner:
                 odometer_miles=round(state.trip_miles, 1),
                 stop_type=stop_type,
                 reason=reason,
+                satisfies_break=satisfies_break,
             )
         )
 
@@ -327,7 +336,26 @@ class _Planner:
 
 def build_events(request: PlannerInput) -> tuple[Event, ...]:
     """Run the planner and return the continuous, calendar-unaware timeline."""
-    return tuple(_Planner(request).run())
+    return _credit_only_useful_breaks(tuple(_Planner(request).run()))
+
+
+def _credit_only_useful_breaks(events: tuple[Event, ...]) -> tuple[Event, ...]:
+    """Drop the break credit from any pause with no driving left after it.
+
+    The planner marks a pause when it resets a non-zero break counter, which it
+    cannot know is pointless until the trip ends. The final unloading always
+    resets the counter, but crediting it with satisfying a break requirement
+    that never comes due again would be noise on the stop list.
+    """
+    driving_remains = False
+    credited: list[Event] = []
+    for event in reversed(events):
+        if event.satisfies_break and not driving_remains:
+            event = replace(event, satisfies_break=False)
+        if event.status is DutyStatus.DRIVING:
+            driving_remains = True
+        credited.append(event)
+    return tuple(reversed(credited))
 
 
 def build_stops(events: tuple[Event, ...], origin_label: str) -> tuple[Stop, ...]:
@@ -364,6 +392,7 @@ def build_stops(events: tuple[Event, ...], origin_label: str) -> tuple[Stop, ...
                 duration_hours=event.duration_hours,
                 odometer_miles=event.odometer_miles,
                 reason=event.reason or "",
+                satisfies_break=event.satisfies_break,
             )
         )
     return tuple(stops)

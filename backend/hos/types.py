@@ -84,6 +84,8 @@ class Event:
     odometer_miles: float = 0.0
     stop_type: StopType | None = None
     reason: str | None = None
+    #: True when this event provided the required 30-minute break.
+    satisfies_break: bool = False
 
     @property
     def duration_minutes(self) -> int:
@@ -106,6 +108,10 @@ class Stop:
     duration_hours: float
     odometer_miles: float
     reason: str
+    #: True when this stop is the 30-minute break required by 395.3(a)(3)(ii).
+    #: A 1-hour pickup or a 30-minute fuel stop satisfies it, which is why a
+    #: compliant trip often has no separate break stop at all.
+    satisfies_break: bool = False
 
 
 @dataclass(frozen=True)
@@ -150,11 +156,35 @@ class TripSummary:
 
 
 @dataclass(frozen=True)
+class Compliance:
+    """Peak usage against each binding limit, so the schedule can be audited.
+
+    Per-shift limits are reported as the worst shift on the trip: if the
+    hardest shift stayed inside 11 hours, every shift did.
+    """
+
+    max_driving_hours_in_shift: float
+    driving_limit_hours: float
+    max_window_hours: float
+    window_limit_hours: float
+    max_driving_hours_between_breaks: float
+    break_required_after_hours: float
+    cycle_hours_used: float
+    cycle_hours_limit: float
+    shifts: int
+
+    @property
+    def cycle_hours_remaining(self) -> float:
+        return round(self.cycle_hours_limit - self.cycle_hours_used, 2)
+
+
+@dataclass(frozen=True)
 class Plan:
     summary: TripSummary
     events: tuple[Event, ...]
     stops: tuple[Stop, ...]
     log_days: tuple[LogDay, ...] = field(default=())
+    compliance: Compliance | None = None
 
 
 class HOSPlanningError(Exception):

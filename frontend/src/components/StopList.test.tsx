@@ -58,3 +58,34 @@ describe('the stop list', () => {
     expect(onSelect).toHaveBeenCalledWith(2)
   })
 })
+
+describe('the satisfied 30-minute break', () => {
+  it('tags the stop that provided it, so the requirement is findable', () => {
+    renderList()
+    const pickup = screen.getByRole('button', { name: /Stop 3, Pickup/ })
+    expect(pickup).toHaveTextContent('Also satisfies the 30-min break')
+  })
+
+  it('tags nothing else', () => {
+    renderList()
+    expect(screen.getAllByText(/Also satisfies the 30-min break/)).toHaveLength(1)
+  })
+
+  it('announces the credit to screen readers too', () => {
+    renderList()
+    expect(screen.getByRole('button', { name: /Stop 3, Pickup/ })).toHaveAccessibleName(
+      /Also satisfies the 30-minute break/,
+    )
+  })
+})
+
+describe('row hierarchy', () => {
+  it('leads with the stop type and location, not the clock', () => {
+    renderList()
+    const row = screen.getByRole('button', { name: /Stop 2, Daily reset/ })
+    const text = row.textContent ?? ''
+    // The type and place come before the time in reading order.
+    expect(text.indexOf('2. Daily reset')).toBeLessThan(text.indexOf('18:00'))
+    expect(text.indexOf('Topeka, KS')).toBeLessThan(text.indexOf('18:00'))
+  })
+})

@@ -28,6 +28,13 @@ export function formatDateTime(iso: string, tzOffsetMinutes: number): string {
   return `${formatDate(iso, tzOffsetMinutes)}, ${formatTime(iso, tzOffsetMinutes)}`
 }
 
+/** The calendar date an instant falls on, in the trip's timezone. */
+export function localDateIso(iso: string, tzOffsetMinutes: number): string {
+  const date = new Date(new Date(iso).getTime() + tzOffsetMinutes * 60_000)
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`
+}
+
 /** "2026-09-22" -> {month: "09", day: "22", year: "2026"} for the sheet header. */
 export function splitLogDate(date: string): { month: string; day: string; year: string } {
   const [year, month, day] = date.split('-')

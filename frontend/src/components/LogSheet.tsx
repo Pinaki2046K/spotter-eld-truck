@@ -224,11 +224,37 @@ function Header({
         value={String(Math.round(totalMiles))}
       />
 
-      <FilledLine x={24} y={176} width={468} label="Name of carrier or carriers" value={carrier} />
-      <FilledLine x={520} y={176} width={456} label="Main office address" value={officeAddress} />
+      <FilledLine
+        x={24}
+        y={176}
+        width={468}
+        label="Name of carrier or carriers"
+        value={carrier}
+        hint="to be completed by the carrier"
+      />
+      <FilledLine
+        x={520}
+        y={176}
+        width={456}
+        label="Main office address"
+        value={officeAddress}
+        hint="to be completed by the carrier"
+      />
 
-      <FilledLine x={24} y={224} width={468} label="Truck / tractor and trailer numbers" />
-      <FilledLine x={520} y={224} width={456} label="Vehicle odometer / VIN" />
+      <FilledLine
+        x={24}
+        y={224}
+        width={468}
+        label="Truck / tractor and trailer numbers"
+        hint="to be completed by the driver"
+      />
+      <FilledLine
+        x={520}
+        y={224}
+        width={456}
+        label="Vehicle odometer / VIN"
+        hint="to be completed by the driver"
+      />
     </g>
   )
 }
@@ -257,15 +283,24 @@ function FilledLine({
   width,
   label,
   value,
+  hint,
 }: {
   x: number
   y: number
   width: number
   label: string
   value?: string
+  /** Shown in place of a value, so the line reads as a form field left blank
+   *  on purpose rather than as data the app failed to produce. */
+  hint?: string
 }) {
   return (
     <g transform={`translate(${x}, ${y})`}>
+      {!value && hint ? (
+        <text x="4" y="-6" fontSize="11" fill="#b9b9bd" fontStyle="italic">
+          {hint}
+        </text>
+      ) : null}
       {value ? (
         <text x="4" y="-6" fontSize="13" fill={RULE}>
           {value.length > Math.floor(width / 7)
@@ -484,9 +519,27 @@ function Footer({ totalMiles }: { totalMiles: number }) {
   const y = REMARKS_TOP + REMARKS_HEIGHT + 34
   return (
     <g>
-      <FilledLine x={24} y={y} width={300} label="Shipping document number(s)" />
-      <FilledLine x={352} y={y} width={300} label="Driver's signature in full" />
-      <FilledLine x={680} y={y} width={296} label="Co-driver's name (if any)" />
+      <FilledLine
+        x={24}
+        y={y}
+        width={300}
+        label="Shipping document number(s)"
+        hint="bill of lading or manifest no."
+      />
+      <FilledLine
+        x={352}
+        y={y}
+        width={300}
+        label="Driver's signature in full"
+        hint="sign on printing"
+      />
+      <FilledLine
+        x={680}
+        y={y}
+        width={296}
+        label="Co-driver's name (if any)"
+        hint="none \u2014 single driver"
+      />
       <text x={24} y={y + 42} fontSize="9.5" fill={INK_MUTED}>
         {Math.round(totalMiles).toLocaleString('en-US')} miles driven today. Times shown in the home
         terminal timezone.

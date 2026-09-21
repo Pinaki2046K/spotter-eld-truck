@@ -125,6 +125,7 @@ class StopSerializer(serializers.ModelSerializer):
             "duration_hours",
             "odometer_miles",
             "reason",
+            "satisfies_break",
         )
 
 
@@ -167,6 +168,7 @@ class TripSerializer(serializers.ModelSerializer):
     inputs = serializers.SerializerMethodField()
     stops = StopSerializer(many=True, read_only=True)
     log_days = LogDaySerializer(many=True, read_only=True)
+    compliance = serializers.SerializerMethodField()
     assumptions = serializers.SerializerMethodField()
 
     class Meta:
@@ -179,8 +181,18 @@ class TripSerializer(serializers.ModelSerializer):
             "route",
             "stops",
             "log_days",
+            "compliance",
             "assumptions",
         )
+
+    def get_compliance(self, trip: Trip) -> dict:
+        """Peak usage against each limit, plus the cycle hours still available."""
+        data = dict(trip.compliance or {})
+        if data:
+            data["cycle_hours_remaining"] = round(
+                data["cycle_hours_limit"] - data["cycle_hours_used"], 2
+            )
+        return data
 
     def get_inputs(self, trip: Trip) -> dict:
         return {

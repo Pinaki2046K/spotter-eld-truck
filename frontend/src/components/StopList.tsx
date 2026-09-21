@@ -46,7 +46,7 @@ export function StopList({
               onFocus={() => onHover(stop.sequence)}
               onBlur={() => onHover(null)}
               onClick={() => onSelect(stop.sequence)}
-              aria-label={`Stop ${stop.sequence}, ${STOP_LABELS[stop.stop_type]} at ${stop.location_label}, ${formatTime(stop.arrival_time, tzOffsetMinutes)}. ${stop.reason}. Show on map.`}
+              aria-label={`Stop ${stop.sequence}, ${STOP_LABELS[stop.stop_type]} at ${stop.location_label}, ${formatTime(stop.arrival_time, tzOffsetMinutes)}. ${stop.reason}.${stop.satisfies_break ? ' Also satisfies the 30-minute break.' : ''} Show on map.`}
               className={`flex w-full gap-3 px-4 py-3 text-left transition-colors ${
                 highlighted === stop.sequence
                   ? 'bg-[var(--color-accent-soft)]'
@@ -73,27 +73,54 @@ export function StopList({
               </span>
 
               <span className="min-w-0 flex-1">
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-[15px] font-semibold">
-                    {stop.sequence}. {STOP_LABELS[stop.stop_type]}
-                  </span>
-                  <span className="shrink-0 text-[13px] tabular-nums text-[var(--color-ink-48)]">
-                    {formatTime(stop.arrival_time, tzOffsetMinutes)}
-                    {stop.duration_hours > 0
-                      ? ` – ${formatTime(stop.departure_time, tzOffsetMinutes)}`
-                      : ''}
-                  </span>
+                {/* Type and place lead; the clock is supporting detail. */}
+                <span className="block text-[15px] leading-snug font-semibold">
+                  {stop.sequence}. {STOP_LABELS[stop.stop_type]}
                 </span>
                 <span className="block truncate text-[14px] text-[var(--color-ink-80)]">
                   {stop.location_label}
                 </span>
-                <span className="mt-0.5 block text-[12.5px] leading-snug text-[var(--color-ink-48)]">
+
+                <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] tabular-nums text-[var(--color-ink-48)]">
+                  <span>
+                    {formatTime(stop.arrival_time, tzOffsetMinutes)}
+                    {stop.duration_hours > 0
+                      ? ` \u2013 ${formatTime(stop.departure_time, tzOffsetMinutes)}`
+                      : ''}
+                  </span>
+                  <span aria-hidden="true">&middot;</span>
+                  <span>{formatMiles(stop.odometer_miles)}</span>
+                  {stop.duration_hours > 0 ? (
+                    <>
+                      <span aria-hidden="true">&middot;</span>
+                      <span>{formatDuration(stop.duration_hours)}</span>
+                    </>
+                  ) : null}
+                </span>
+
+                <span className="mt-1 block text-[12.5px] leading-snug text-[var(--color-ink-48)]">
                   {stop.reason}
                 </span>
-                <span className="mt-1 block text-[11.5px] tabular-nums text-[var(--color-ink-48)]">
-                  {formatMiles(stop.odometer_miles)}
-                  {stop.duration_hours > 0 ? ` · ${formatDuration(stop.duration_hours)}` : ''}
-                </span>
+
+                {/* Why a compliant trip can show no separate break stop. */}
+                {stop.satisfies_break ? (
+                  <span className="mt-1.5 inline-flex items-center gap-1 rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-pearl)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-duty-off)]">
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 12 12"
+                      aria-hidden="true"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M2 6.5 4.6 9 10 3.5" />
+                    </svg>
+                    Also satisfies the 30-min break
+                  </span>
+                ) : null}
               </span>
             </button>
           </li>

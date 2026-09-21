@@ -63,6 +63,8 @@ export interface Stop {
   duration_hours: number
   odometer_miles: number
   reason: string
+  /** This stop provided the 30-minute break required after 8 driving hours. */
+  satisfies_break: boolean
 }
 
 export interface DutyEntry {
@@ -88,6 +90,19 @@ export interface LogDay {
     total: number
   }
   entries: DutyEntry[]
+}
+
+export interface Compliance {
+  max_driving_hours_in_shift: number
+  driving_limit_hours: number
+  max_window_hours: number
+  window_limit_hours: number
+  max_driving_hours_between_breaks: number
+  break_required_after_hours: number
+  cycle_hours_used: number
+  cycle_hours_limit: number
+  cycle_hours_remaining: number
+  shifts: number
 }
 
 export interface Assumptions {
@@ -118,5 +133,6 @@ export interface Trip {
   route: { legs: RouteLeg[] }
   stops: Stop[]
   log_days: LogDay[]
+  compliance: Compliance
   assumptions: Assumptions
 }

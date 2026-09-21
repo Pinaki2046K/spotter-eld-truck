@@ -7,6 +7,7 @@ database and the planner meet.
 from __future__ import annotations
 
 import uuid
+from dataclasses import asdict
 from datetime import datetime
 
 from django.db import transaction
@@ -142,6 +143,7 @@ def _persist(
         total_on_duty_hours=summary.total_on_duty_hours,
         total_off_duty_hours=summary.total_off_duty_hours,
         routing_provider=routed[0].provider,
+        compliance=asdict(plan.compliance) if plan.compliance else {},
     )
 
     RouteLeg.objects.bulk_create(
@@ -170,6 +172,7 @@ def _persist(
             duration_hours=stop.duration_hours,
             odometer_miles=stop.odometer_miles,
             reason=stop.reason,
+            satisfies_break=stop.satisfies_break,
         )
         for stop in plan.stops
     )

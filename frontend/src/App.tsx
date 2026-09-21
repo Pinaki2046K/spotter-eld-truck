@@ -4,6 +4,7 @@ import { ApiError, createTrip, getTrip, pingHealth } from './api/client'
 import type { Trip, TripRequest } from './api/types'
 import { LogSheets } from './components/LogSheets'
 import { StopList } from './components/StopList'
+import { ComplianceStrip } from './components/ComplianceStrip'
 import { SummaryBar } from './components/SummaryBar'
 import { TripForm } from './components/TripForm'
 import { TripSummaryCard } from './components/TripSummaryCard'
@@ -140,7 +141,8 @@ export default function App() {
                 />
 
                 <div className="grid gap-5 xl:grid-cols-5">
-                  <div className="order-2 xl:order-1 xl:col-span-2">
+                  <div className="order-2 flex flex-col gap-5 xl:order-1 xl:col-span-2">
+                    <ComplianceStrip compliance={trip.compliance} />
                     <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-white">
                       <h2 className="border-b border-[var(--color-divider)] px-4 py-3 text-[17px] font-semibold">
                         Stops

@@ -43,6 +43,9 @@ class Trip(models.Model):
     total_off_duty_hours = models.FloatField()
 
     routing_provider = models.CharField(max_length=32, default="")
+    #: Peak usage against each HOS limit, from hos.Compliance. Stored rather
+    #: than recomputed so a shared trip URL stays auditable without the engine.
+    compliance = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -83,6 +86,8 @@ class Stop(models.Model):
     duration_hours = models.FloatField()
     odometer_miles = models.FloatField(default=0.0)
     reason = models.CharField(max_length=255, blank=True)
+    #: This stop provided the required 30-minute break.
+    satisfies_break = models.BooleanField(default=False)
 
     class Meta:
         ordering = ("sequence",)

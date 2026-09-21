@@ -201,3 +201,56 @@ def test_log_days_respect_the_home_terminal_timezone(standard_route, zone_offset
     for day in plan.log_days:
         first = day.entries[0].start_time.astimezone(zone)
         assert (first.hour, first.minute) == (0, 0)
+
+
+# --- compliance evidence ---------------------------------------------------
+
+
+def test_compliance_reports_the_worst_shift_not_the_trip_total(standard_route, start):
+    """A trip total of 20 driving hours proves nothing; the worst shift does."""
+    plan = plan_trip(standard_route, 20.0, start)
+    compliance = plan.compliance
+
+    assert compliance is not None
+    assert compliance.shifts >= 2
+    assert compliance.max_driving_hours_in_shift <= compliance.driving_limit_hours
+    assert compliance.max_window_hours <= compliance.window_limit_hours
+    assert compliance.max_driving_hours_between_breaks <= compliance.break_required_after_hours
+    # The trip drives far more than one shift's limit.
+    assert plan.summary.total_driving_hours > compliance.max_driving_hours_in_shift
+
+
+def test_compliance_tracks_the_cycle_from_the_hours_already_used(standard_route, start):
+    plan = plan_trip(standard_route, 20.0, start)
+
+    assert plan.compliance.cycle_hours_used > 20.0
+    assert plan.compliance.cycle_hours_remaining == pytest.approx(
+        70.0 - plan.compliance.cycle_hours_used, abs=0.01
+    )
+
+
+def test_a_restart_returns_the_full_cycle(standard_route, start):
+    plan = plan_trip(standard_route, 70.0, start)
+    assert plan.compliance.cycle_hours_used < 70.0
+
+
+def test_loading_and_fuelling_are_credited_with_the_required_break(standard_route, start):
+    """No separate break stop appears because these already satisfy it."""
+    plan = plan_trip(standard_route, 20.0, start)
+    crediting = [s for s in plan.stops if s.satisfies_break]
+
+    assert {s.stop_type for s in crediting} == {StopType.PICKUP, StopType.FUEL}
+    assert all(s.duration_hours >= 0.5 for s in crediting)
+
+
+def test_a_pause_with_no_driving_after_it_is_not_credited(standard_route, start):
+    """The final unloading resets the counter but no break was ever due again."""
+    plan = plan_trip(standard_route, 20.0, start)
+    dropoff = next(s for s in plan.stops if s.stop_type is StopType.DROPOFF)
+    assert dropoff.satisfies_break is False
+
+
+def test_a_ten_hour_reset_is_not_described_as_the_break(standard_route, start):
+    plan = plan_trip(standard_route, 20.0, start)
+    resets = [s for s in plan.stops if s.stop_type is StopType.DAILY_RESET]
+    assert resets and all(not s.satisfies_break for s in resets)

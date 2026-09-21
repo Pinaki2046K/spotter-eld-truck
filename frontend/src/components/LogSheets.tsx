@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import type { Trip } from '../api/types'
 import { formatDate } from '../lib/format'
+import { LogDayLimits } from './LogDayLimits'
 import { LogSheet } from './LogSheet'
 
 /** Above this many days a plain stack is unwieldy, so a sticky selector appears. */
@@ -85,18 +86,21 @@ export function LogSheets({ trip, tzOffsetMinutes }: { trip: Trip; tzOffsetMinut
             id={`log-day-${day.day_number}`}
             className="scroll-mt-16 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-white"
           >
-            <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--color-divider)] px-5 py-3">
-              <h3 className="text-[17px] font-semibold">
-                Day {day.day_number}
-                <span className="ml-2 font-normal text-[var(--color-ink-48)]">
-                  {formatDate(`${day.date}T12:00:00Z`, 0)}, {day.date.slice(0, 4)}
-                </span>
-              </h3>
-              <p className="text-[13px] tabular-nums text-[var(--color-ink-48)]">
-                {Math.round(day.total_miles).toLocaleString('en-US')} miles &middot;{' '}
-                {day.totals.driving.toFixed(2)} h driving &middot; totals{' '}
-                {day.totals.total.toFixed(2)} h
-              </p>
+            <header className="border-b border-[var(--color-divider)] px-5 py-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <h3 className="text-[17px] font-semibold">
+                  Day {day.day_number}
+                  <span className="ml-2 font-normal text-[var(--color-ink-48)]">
+                    {formatDate(`${day.date}T12:00:00Z`, 0)}, {day.date.slice(0, 4)}
+                  </span>
+                </h3>
+                <p className="text-[13px] tabular-nums text-[var(--color-ink-48)]">
+                  {Math.round(day.total_miles).toLocaleString('en-US')} miles &middot;{' '}
+                  {day.totals.driving.toFixed(2)} h driving &middot; totals{' '}
+                  {day.totals.total.toFixed(2)} h
+                </p>
+              </div>
+              <LogDayLimits day={day} stops={trip.stops} tzOffsetMinutes={tzOffsetMinutes} />
             </header>
             {/* Below 768px the sheet scrolls horizontally rather than squashing the grid. */}
             <div className="overflow-x-auto px-3 py-3">
