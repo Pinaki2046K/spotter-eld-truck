@@ -24,6 +24,7 @@ Chicago → St. Louis → Denver with 20 cycle hours used.
 
 ```bash
 git clone <this repo> && cd spotter
+export DEBUG=True SECRET_KEY=local-dev-only   # settings default to production-safe; opt in to dev
 (cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && .venv/bin/python manage.py migrate && .venv/bin/python manage.py seed_example_trip)
 (cd backend && .venv/bin/python manage.py runserver) &
 (cd frontend && npm install && npm run dev)
@@ -31,11 +32,13 @@ git clone <this repo> && cd spotter
 
 Open <http://localhost:5173>. **No API keys, no signup, no database setup**: routing uses the
 public OSRM server, geocoding uses Nominatim, and the database is SQLite. Vite proxies `/api` to
-Django, so there is no CORS to configure either.
+Django, so there is no CORS to configure either. The two exported variables are the only setup:
+`DEBUG` defaults to off and there is no fallback `SECRET_KEY`, so a deploy that forgets either
+fails safe rather than running in debug mode on a key published in this repo.
 
 ```bash
-cd backend  && .venv/bin/python -m pytest -q   # 72 tests, engine + API
-cd frontend && npm run test -- --run           # 33 tests, formatting + components
+cd backend  && .venv/bin/python -m pytest -q   # 103 tests, engine + API + settings
+cd frontend && npm run test -- --run           # 49 tests, formatting + components
 ```
 
 ## How it works

@@ -1,7 +1,9 @@
 """Django settings for the trip planner backend.
 
-Production values all come from the environment; the defaults here are the
-ones that make `python manage.py runserver` work with no setup at all.
+Production values all come from the environment. The defaults are the
+production-hardened ones: debug is opt-in, and a missing SECRET_KEY stops the
+process rather than falling back to a known value. Local development sets
+DEBUG=True and a throwaway SECRET_KEY explicitly (see the README).
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -22,8 +25,14 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return os.environ.get(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
 
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "insecure-development-key-do-not-deploy")
-DEBUG = _env_bool("DEBUG", True)
+SECRET_KEY = os.environ.get("SECRET_KEY", "")
+if not SECRET_KEY:
+    # No fallback: a placeholder key that ships in the repo signs nothing securely,
+    # and a deploy that forgot the variable should fail at boot, not run on it.
+    raise ImproperlyConfigured(
+        "SECRET_KEY is not set. Export one (any random string will do locally)."
+    )
+DEBUG = _env_bool("DEBUG", False)
 
 ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS") or (["*"] if DEBUG else [])
 
@@ -122,9 +131,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- CORS ------------------------------------------------------------------
 # The frontend is a separate origin (Vercel), so this is load-bearing, not
-# boilerplate.  Never "*" in production -- the exact Vercel domain.
+# boilerplate.  Never "*" in production -- the exact Vercel domain, and no
+# *.vercel.app pattern either: that would admit every app hosted on Vercel.
 CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS")
-CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://.*\.vercel\.app$"] if CORS_ALLOWED_ORIGINS else []
 CORS_ALLOW_ALL_ORIGINS = DEBUG and not CORS_ALLOWED_ORIGINS
 
 REST_FRAMEWORK = {
