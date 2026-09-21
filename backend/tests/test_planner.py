@@ -69,8 +69,9 @@ def test_near_cycle_limit_inserts_restart_early(standard_route, start):
     assert_all_invariants(plan, 68.0)
     restarts = [s for s in plan.stops if s.stop_type is StopType.CYCLE_RESTART]
     assert restarts, "expected a 34-hour restart with only 2 cycle hours left"
-    # Two hours of driving, then the cycle is done.
-    assert restarts[0].arrival_time - start <= timedelta(hours=2)
+    # Two on-duty hours (a 15-minute pre-trip, then driving) exhaust the cycle;
+    # the post-trip inspection follows, then the restart.
+    assert restarts[0].arrival_time - start <= timedelta(hours=2, minutes=15)
 
 
 def test_at_cycle_limit_opens_with_a_restart(standard_route, start):
@@ -254,3 +255,119 @@ def test_a_ten_hour_reset_is_not_described_as_the_break(standard_route, start):
     plan = plan_trip(standard_route, 20.0, start)
     resets = [s for s in plan.stops if s.stop_type is StopType.DAILY_RESET]
     assert resets and all(not s.satisfies_break for s in resets)
+
+
+# --- 395.3(b) limits driving, not on-duty work ----------------------------------
+
+
+def test_unloading_does_not_wait_for_a_restart_when_the_cycle_ends_on_arrival(start):
+    """Arriving at the dropoff with exactly 70 cycle hours used is not a reason
+    to sit for 34 hours: unloading is on duty *not driving*, which 395.3(b)
+    allows past 70. Before the fix this trip ended two days later."""
+    # 0.25 pre-trip + 1 h drive + 1 h loading + 8 h drive = 10.25 on-duty hours.
+    route = two_leg_route(pickup_miles=55.0, dropoff_miles=440.0)
+    plan = plan_trip(route, cycle_hours_used=59.75, start_datetime=start)
+
+    assert_all_invariants(plan, 59.75)
+    assert count(plan, StopType.CYCLE_RESTART) == 0
+    assert plan.summary.total_days == 1
+    dropoff = next(s for s in plan.stops if s.stop_type is StopType.DROPOFF)
+    last_driving = [e for e in plan.events if e.status is DutyStatus.DRIVING][-1]
+    assert dropoff.arrival_time == last_driving.end
+    # The cycle legitimately ends above 70; the gauge floors "left" at zero.
+    assert plan.compliance.cycle_hours_used == 71.25
+    assert plan.compliance.cycle_hours_remaining == 0.0
+
+
+def test_a_restart_still_precedes_driving_past_70(start):
+    # A little more driving than the case above: the cycle reaches 70 with the
+    # dropoff still ahead, so a restart must come before the remaining miles.
+    route = two_leg_route(pickup_miles=55.0, dropoff_miles=450.0)
+    plan = plan_trip(route, cycle_hours_used=59.75, start_datetime=start)
+
+    assert_all_invariants(plan, 59.75)
+    assert count(plan, StopType.CYCLE_RESTART) == 1
+    restart = next(s for s in plan.stops if s.stop_type is StopType.CYCLE_RESTART)
+    dropoff = next(s for s in plan.stops if s.stop_type is StopType.DROPOFF)
+    assert restart.arrival_time < dropoff.arrival_time
+
+
+# --- inspections -----------------------------------------------------------------
+
+
+def _shift_bounds(plan):
+    """First and last event of each shift (runs of work between 10+ hours off)."""
+    shifts, current = [], []
+    for event in plan.events:
+        rest = (
+            event.status in (DutyStatus.OFF_DUTY, DutyStatus.SLEEPER_BERTH)
+            and event.duration_hours >= 10
+        )
+        if rest:
+            if current:
+                shifts.append(current)
+            current = []
+        else:
+            current.append(event)
+    if current:
+        shifts.append(current)
+    return shifts
+
+
+def test_every_shift_opens_and_closes_with_a_15_minute_inspection(long_haul_route, start):
+    plan = plan_trip(long_haul_route, cycle_hours_used=0.0, start_datetime=start)
+
+    assert_all_invariants(plan, 0.0)
+    shifts = _shift_bounds(plan)
+    assert len(shifts) > 3
+    for shift in shifts:
+        first, last = shift[0], shift[-1]
+        assert first.remark == "Pre-trip inspection", first
+        assert last.remark == "Post-trip inspection", last
+        for event in (first, last):
+            assert event.status is DutyStatus.ON_DUTY_NOT_DRIVING
+            assert event.duration_minutes == 15
+
+
+def test_the_pre_trip_inspection_opens_the_14_hour_window(short_route, start):
+    plan = plan_trip(short_route, cycle_hours_used=0.0, start_datetime=start)
+    assert plan.events[0].remark == "Pre-trip inspection"
+    assert plan.events[0].start == start
+    assert plan.events[1].status is DutyStatus.DRIVING
+    assert plan.events[1].start == start + timedelta(minutes=15)
+
+
+# --- the 70-hour/8-day recap --------------------------------------------------------
+
+
+def _on_duty(day) -> float:
+    return day.totals[DutyStatus.DRIVING] + day.totals[DutyStatus.ON_DUTY_NOT_DRIVING]
+
+
+def test_recap_cycle_totals_accumulate_day_by_day(long_haul_route, start):
+    plan = plan_trip(long_haul_route, cycle_hours_used=0.0, start_datetime=start)
+    assert count(plan, StopType.CYCLE_RESTART) == 0  # precondition: no reset to model
+
+    previous = 0.0
+    for day in plan.log_days:
+        assert day.cycle_hours_used_end == pytest.approx(previous + _on_duty(day), abs=0.011)
+        previous = day.cycle_hours_used_end
+    assert plan.log_days[-1].cycle_hours_used_end == plan.summary.cycle_hours_used_at_end
+
+
+def test_recap_cycle_total_resets_once_a_34_hour_restart_completes(standard_route, start):
+    plan = plan_trip(standard_route, cycle_hours_used=68.0, start_datetime=start)
+    restart = next(s for s in plan.stops if s.stop_type is StopType.CYCLE_RESTART)
+    restart_end_day = restart.departure_time.astimezone(start.tzinfo).date()
+    day = next(d for d in plan.log_days if d.date == restart_end_day)
+
+    # Only the on-duty time after the restart ends counts on that day. The
+    # day's entries are already cut at midnight, so they are the right units.
+    after = sum(
+        e.duration_hours
+        for e in day.entries
+        if e.start_time >= restart.departure_time
+        and e.status in (DutyStatus.DRIVING, DutyStatus.ON_DUTY_NOT_DRIVING)
+    )
+    assert day.cycle_hours_used_end == pytest.approx(after, abs=0.011)
+    assert plan.log_days[-1].cycle_hours_used_end == plan.summary.cycle_hours_used_at_end

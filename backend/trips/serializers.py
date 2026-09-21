@@ -150,7 +150,7 @@ class LogDaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LogDay
-        fields = ("day_number", "date", "total_miles", "totals", "entries")
+        fields = ("day_number", "date", "total_miles", "totals", "cycle_hours_used_end", "entries")
 
     def get_totals(self, day: LogDay) -> dict:
         return {
@@ -189,8 +189,9 @@ class TripSerializer(serializers.ModelSerializer):
         """Peak usage against each limit, plus the cycle hours still available."""
         data = dict(trip.compliance or {})
         if data:
+            # Floored: unloading may legally take the cycle past 70.
             data["cycle_hours_remaining"] = round(
-                data["cycle_hours_limit"] - data["cycle_hours_used"], 2
+                max(0.0, data["cycle_hours_limit"] - data["cycle_hours_used"]), 2
             )
         return data
 
@@ -249,4 +250,5 @@ class TripSerializer(serializers.ModelSerializer):
             "fuel_stop_hours": config.FUEL_STOP_HOURS,
             "pickup_hours": config.PICKUP_HOURS,
             "dropoff_hours": config.DROPOFF_HOURS,
+            "inspection_hours": config.INSPECTION_HOURS,
         }

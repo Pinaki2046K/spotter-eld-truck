@@ -135,6 +135,10 @@ class LogDay:
     total_miles: float
     totals: dict[DutyStatus, float]
     entries: tuple[DutyEntry, ...]
+    #: On-duty hours in the current cycle at this day's 24:00, for the log's
+    #: 70-hour/8-day recap. The planner's model: the entered prior hours plus
+    #: everything since, zeroed only when a 34-hour restart completes.
+    cycle_hours_used_end: float = 0.0
 
     @property
     def total_hours(self) -> float:
@@ -175,7 +179,9 @@ class Compliance:
 
     @property
     def cycle_hours_remaining(self) -> float:
-        return round(self.cycle_hours_limit - self.cycle_hours_used, 2)
+        # Unloading or a post-trip inspection may legally carry the total past
+        # 70 (only driving is forbidden there), so this floors at zero.
+        return round(max(0.0, self.cycle_hours_limit - self.cycle_hours_used), 2)
 
 
 @dataclass(frozen=True)

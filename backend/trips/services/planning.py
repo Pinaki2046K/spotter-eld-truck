@@ -188,6 +188,7 @@ def _persist(
             total_sleeper=day.totals[DutyStatus.SLEEPER_BERTH],
             total_driving=day.totals[DutyStatus.DRIVING],
             total_on_duty=day.totals[DutyStatus.ON_DUTY_NOT_DRIVING],
+            cycle_hours_used_end=day.cycle_hours_used_end,
         )
         entries.extend(
             DutyEntry(

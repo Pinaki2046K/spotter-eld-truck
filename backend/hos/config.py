@@ -36,6 +36,10 @@ class HOSConfig:
     # --- our own assumptions, stated in the README --------------------------
     AVERAGE_SPEED_MPH: float = 55.0
     FUEL_STOP_HOURS: float = 0.5
+    #: Pre-trip and post-trip vehicle inspection (49 CFR 396.13 / 396.11), on
+    #: duty not driving at the start and end of every shift. FMCSA's guide shows
+    #: both on its completed example log; 15 minutes is the customary figure.
+    INSPECTION_HOURS: float = 0.25
 
     # The planner works in whole minutes so that log-day totals are exact.
     @property
@@ -77,6 +81,10 @@ class HOSConfig:
     @property
     def fuel_stop_min(self) -> int:
         return _minutes(self.FUEL_STOP_HOURS)
+
+    @property
+    def inspection_min(self) -> int:
+        return _minutes(self.INSPECTION_HOURS)
 
 
 DEFAULT_CONFIG = HOSConfig()

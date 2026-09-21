@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, tzinfo
 
+from .config import DEFAULT_CONFIG, HOSConfig
 from .types import LOG_ROW_ORDER, DutyEntry, DutyStatus, Event, LogDay
 
 MINUTES_PER_DAY = 24 * 60
@@ -104,7 +105,32 @@ def _totals_summing_to_24(minutes_by_status: dict[DutyStatus, int]) -> dict[Duty
     return rounded
 
 
-def build_log_days(events: tuple[Event, ...], zone: tzinfo) -> tuple[LogDay, ...]:
+def cycle_minutes_at(
+    events: tuple[Event, ...], moment: datetime, cycle_hours_used: float, config: HOSConfig
+) -> int:
+    """On-duty minutes in the cycle at `moment`, replaying the planner's model.
+
+    A 34-hour restart zeroes the cycle when it completes, not when it begins,
+    so one still in progress at `moment` has not reset anything yet.
+    """
+    used = round(cycle_hours_used * 60)
+    for event in events:
+        if event.start >= moment:
+            break
+        if event.status in (DutyStatus.DRIVING, DutyStatus.ON_DUTY_NOT_DRIVING):
+            portion_end = min(event.end, moment)
+            used += round((portion_end - event.start).total_seconds() / 60)
+        elif event.duration_minutes >= config.cycle_restart_min and event.end <= moment:
+            used = 0
+    return used
+
+
+def build_log_days(
+    events: tuple[Event, ...],
+    zone: tzinfo,
+    cycle_hours_used: float = 0.0,
+    config: HOSConfig = DEFAULT_CONFIG,
+) -> tuple[LogDay, ...]:
     if not events:
         return ()
     pieces = split_at_midnight(pad_to_whole_days(events, zone), zone)
@@ -139,6 +165,10 @@ def build_log_days(events: tuple[Event, ...], zone: tzinfo) -> tuple[LogDay, ...
                 total_miles=round(sum(e.distance_miles for e in day_events), 1),
                 totals=_totals_summing_to_24(minutes_by_status),
                 entries=tuple(entries),
+                cycle_hours_used_end=round(
+                    cycle_minutes_at(events, day_events[-1].end, cycle_hours_used, config) / 60,
+                    2,
+                ),
             )
         )
     return tuple(log_days)

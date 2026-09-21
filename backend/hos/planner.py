@@ -185,7 +185,24 @@ class _Planner:
 
     # -- rule events -------------------------------------------------------
 
+    def _close_shift(self) -> None:
+        """Post-trip inspection, if a shift is open: the last on-duty act before rest."""
+        if self.state.window_start is not None:
+            self._emit(
+                DutyStatus.ON_DUTY_NOT_DRIVING, self.cfg.inspection_min, "Post-trip inspection"
+            )
+
+    def _open_shift(self) -> None:
+        """Pre-trip inspection: the first on-duty act of a shift, before any driving.
+
+        Emitted lazily, when the planner is about to drive with no shift open, so
+        a rest is never followed by an inspection that leads straight to another
+        rest. It opens the 14-hour window, as any on-duty time does.
+        """
+        self._emit(DutyStatus.ON_DUTY_NOT_DRIVING, self.cfg.inspection_min, "Pre-trip inspection")
+
     def _take_cycle_restart(self, at_start: bool = False) -> None:
+        self._close_shift()
         template = REASON_RESTART_AT_START if at_start else REASON_RESTART
         reason = template.format(used=self.state.cycle_used_min / 60, limit=self.cfg.CYCLE_HOURS)
         self._emit(
@@ -197,6 +214,7 @@ class _Planner:
         )
 
     def _take_daily_reset(self, reason: str) -> None:
+        self._close_shift()
         self._emit(
             DutyStatus.SLEEPER_BERTH,
             self.cfg.daily_reset_min,
@@ -206,7 +224,12 @@ class _Planner:
         )
 
     def _ensure_cycle_room(self, required_min: int) -> bool:
-        """Take a 34-hour restart if the cycle cannot absorb `required_min` on duty."""
+        """Take a 34-hour restart if the cycle cannot absorb `required_min` of driving.
+
+        395.3(b) forbids *driving* after 70 on-duty hours, not being on duty, so
+        this guards driving alone. Loading, unloading, fuelling and inspections
+        may run past 70; the restart comes before the next minute behind the wheel.
+        """
         if self._cycle_remaining_min() >= required_min:
             return False
         self._take_cycle_restart()
@@ -228,8 +251,6 @@ class _Planner:
             self._take_daily_reset(REASON_RESET_WINDOW)
             return True
         if self._fuel_headroom_min(minutes_per_mile) < MIN_SEGMENT_MIN:
-            if self._ensure_cycle_room(self.cfg.fuel_stop_min):
-                return True
             miles = self._miles_since_fuel()
             self._emit(
                 DutyStatus.ON_DUTY_NOT_DRIVING,
@@ -260,12 +281,10 @@ class _Planner:
     # -- main loop ---------------------------------------------------------
 
     def run(self) -> list[Event]:
-        if self._cycle_remaining_min() < MIN_SEGMENT_MIN:
-            self._take_cycle_restart(at_start=True)
-
         for leg in self.request.legs:
             self._drive_leg(leg)
             self._arrive(leg)
+        self._close_shift()
         return self.events
 
     def _drive_leg(self, leg: RouteLeg) -> None:
@@ -284,6 +303,13 @@ class _Planner:
         remaining = leg_minutes
         covered_miles = 0.0
         while remaining > 0:
+            if self.state.window_start is None:
+                # A shift is about to begin. Restart first if the cycle could not
+                # let it drive at all, so the inspection opens a usable shift.
+                if self._cycle_remaining_min() < self.cfg.inspection_min + MIN_SEGMENT_MIN:
+                    self._take_cycle_restart(at_start=not self.events)
+                self._open_shift()
+                continue
             if self._resolve_blockers(minutes_per_mile):
                 continue
 
@@ -315,7 +341,6 @@ class _Planner:
 
     def _arrive(self, leg: RouteLeg) -> None:
         if leg.arrival_stop is StopType.PICKUP:
-            self._ensure_cycle_room(self.cfg.pickup_min)
             self._emit(
                 DutyStatus.ON_DUTY_NOT_DRIVING,
                 self.cfg.pickup_min,
@@ -324,7 +349,6 @@ class _Planner:
                 reason=REASON_PICKUP,
             )
         elif leg.arrival_stop is StopType.DROPOFF:
-            self._ensure_cycle_room(self.cfg.dropoff_min)
             self._emit(
                 DutyStatus.ON_DUTY_NOT_DRIVING,
                 self.cfg.dropoff_min,

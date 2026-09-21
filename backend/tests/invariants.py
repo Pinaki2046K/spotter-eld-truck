@@ -81,13 +81,18 @@ def assert_break_rule(plan: Plan) -> None:
 
 
 def assert_cycle_limit(plan: Plan, cycle_hours_used: float) -> None:
-    """Invariant 5: on-duty hours never exceed the 70-hour cycle without a restart."""
+    """Invariant 5: no driving once the cycle has reached 70 on-duty hours.
+
+    395.3(b) forbids *driving* after 70 hours on duty in 8 days. On-duty work
+    that is not driving -- unloading, an inspection -- may continue past it.
+    """
     used = cycle_hours_used
     for event in plan.events:
         if event.status in (DutyStatus.DRIVING, DutyStatus.ON_DUTY_NOT_DRIVING):
             used += event.duration_hours
+        if event.status is DutyStatus.DRIVING:
             assert used <= CFG.CYCLE_HOURS + TOLERANCE, (
-                f"cycle reached {used:.3f}h without a 34-hour restart "
+                f"drove with {used:.3f}h in the cycle, past 70, without a 34-hour restart "
                 f"(segment ending {event.end.isoformat()})"
             )
         elif (

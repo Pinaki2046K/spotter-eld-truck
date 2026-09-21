@@ -27,7 +27,7 @@ def plan_trip(
 
     zone = start_datetime.tzinfo
     assert zone is not None  # guaranteed by PlannerInput.validate
-    log_days = build_log_days(events, zone)
+    log_days = build_log_days(events, zone, cycle_hours_used, config)
 
     driving_minutes = sum(e.duration_minutes for e in events if e.status is DutyStatus.DRIVING)
     on_duty_minutes = driving_minutes + sum(

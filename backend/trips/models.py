@@ -105,6 +105,9 @@ class LogDay(models.Model):
     total_sleeper = models.FloatField(default=0.0)
     total_driving = models.FloatField(default=0.0)
     total_on_duty = models.FloatField(default=0.0)
+    #: Cycle hours used at this day's 24:00, for the 70-hour/8-day recap. Null
+    #: on trips planned before the recap existed; the sheet then omits it.
+    cycle_hours_used_end = models.FloatField(null=True, blank=True)
 
     class Meta:
         ordering = ("day_number",)

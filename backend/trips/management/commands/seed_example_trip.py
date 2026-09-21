@@ -60,4 +60,7 @@ class Command(BaseCommand):
         empty -- and this is the trip a reviewer opens first.
         """
         trip = Trip.objects.filter(pk=trip_id).first()
-        return trip is not None and bool(trip.compliance)
+        if trip is None or not trip.compliance:
+            return False
+        # Planned before the recap (and the inspections that came with it).
+        return not trip.log_days.filter(cycle_hours_used_end__isnull=True).exists()
