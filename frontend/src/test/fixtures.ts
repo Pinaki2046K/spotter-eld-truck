@@ -6,6 +6,7 @@ export const DAY_ONE: LogDay = {
   date: '2026-09-22',
   total_miles: 605,
   totals: { off_duty: 6, sleeper: 6, driving: 11, on_duty: 1, total: 24 },
+  cycle_hours_used_end: 32,
   entries: [
     {
       sequence: 1,
@@ -148,5 +149,6 @@ export const TRIP: Trip = {
     fuel_stop_hours: 0.5,
     pickup_hours: 1,
     dropoff_hours: 1,
+    inspection_hours: 0.25,
   },
 }

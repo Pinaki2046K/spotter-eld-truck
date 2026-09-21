@@ -16,7 +16,8 @@ const MARGIN = 24
 /** Build the document. Separated from saving so it can be exercised headlessly. */
 export async function buildLogSheetsPdf(dayNumbers: number[]): Promise<jsPDF> {
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
-  const width = A4_LANDSCAPE_WIDTH - MARGIN * 2
+  const availableWidth = A4_LANDSCAPE_WIDTH - MARGIN * 2
+  const availableHeight = A4_LANDSCAPE_HEIGHT - MARGIN * 2
 
   let pageIndex = 0
   for (const dayNumber of dayNumbers) {
@@ -31,7 +32,11 @@ export async function buildLogSheetsPdf(dayNumbers: number[]): Promise<jsPDF> {
     const [, , viewWidth, viewHeight] = (source.getAttribute('viewBox') ?? '0 0 1000 660')
       .split(/\s+/)
       .map(Number)
-    const height = (width * viewHeight) / viewWidth
+    // A day with many duty changes has a taller remarks list, so the sheet is
+    // fitted to the page in both directions rather than only by width.
+    const scale = Math.min(availableWidth / viewWidth, availableHeight / viewHeight)
+    const width = viewWidth * scale
+    const height = viewHeight * scale
 
     const clone = source.cloneNode(true) as SVGSVGElement
     clone.setAttribute('width', String(width))
@@ -44,8 +49,8 @@ export async function buildLogSheetsPdf(dayNumbers: number[]): Promise<jsPDF> {
 
     try {
       await pdf.svg(clone, {
-        x: MARGIN,
-        y: Math.max(MARGIN, (A4_LANDSCAPE_HEIGHT - height) / 2),
+        x: (A4_LANDSCAPE_WIDTH - width) / 2,
+        y: (A4_LANDSCAPE_HEIGHT - height) / 2,
         width,
         height,
       })

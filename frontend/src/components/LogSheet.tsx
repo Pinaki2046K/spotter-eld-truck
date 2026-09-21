@@ -2,6 +2,8 @@ import type { LogDay } from '../api/types'
 import { ACCENT, DANGER, HAIRLINE, INK, INK_MUTED, ROW_TINT, SVG_FONT_STACK } from '../lib/colors'
 import { DUTY_LABELS, DUTY_ROWS } from '../lib/duty'
 import { formatHours, hoursIntoDay, splitLogDate } from '../lib/format'
+import { shortPlace } from '../lib/places'
+import { buildRemarks, type Remark } from '../lib/remarks'
 
 /**
  * One FMCSA driver's daily log, drawn as inline SVG.
@@ -12,7 +14,6 @@ import { formatHours, hoursIntoDay, splitLogDate } from '../lib/format'
  */
 
 const WIDTH = 1000
-const HEIGHT = 680
 
 const GRID_LEFT = 150
 const GRID_RIGHT = 900
@@ -23,19 +24,41 @@ const HOUR_WIDTH = GRID_WIDTH / 24
 const GRID_BOTTOM = GRID_TOP + ROW_HEIGHT * DUTY_ROWS.length
 const TOTALS_LEFT = GRID_RIGHT
 const REMARKS_TOP = GRID_BOTTOM + 8
-const REMARKS_HEIGHT = 120
-/** Duty changes closer together than this share the row, so they stagger. */
-const REMARK_STAGGER_MINUTES = 45
-const REMARK_STAGGER_WIDTH = (REMARK_STAGGER_MINUTES / 60) * HOUR_WIDTH
-const REMARK_LANES = 3
-const REMARK_LANE_DEPTH = 26
-/**
- * Rotated 90 degrees, a label's glyphs sit just right of its x and its
- * descenders just left. A duty change at midnight has x on the remarks box's
- * border, so labels are held this far inside it; the leader keeps the true x.
+
+/*
+ * Remarks. Every change of duty status gets a numbered marker on a leader
+ * dropped from the grid at that minute, and the same number in a list below
+ * with the time, the place (city, state) and the activity. Rotated labels
+ * could not carry the activity: at 9px, "Post-trip inspection" alone is taller
+ * than the box, and a 15-minute inspection sits 8px from the next change.
  */
-const REMARK_EDGE_INSET_LEFT = 3
-const REMARK_EDGE_INSET_RIGHT = 10
+const MARKER_RADIUS = 7
+const MARKER_LANES = 3
+const MARKER_LANE_DEPTH = 16
+/** Markers closer than this horizontally would touch, so they stagger down. */
+const MARKER_MIN_GAP = MARKER_RADIUS * 2 + 3
+const MARKER_BAND = 14 + (MARKER_LANES - 1) * MARKER_LANE_DEPTH + MARKER_RADIUS + 4
+const REMARK_COLUMNS = 3
+const REMARK_ROW_HEIGHT = 13
+const REMARK_COLUMN_WIDTH = (GRID_WIDTH - 20) / REMARK_COLUMNS
+const RECAP_HEIGHT = 112
+
+/** Where each section sits, given how many remarks the day has. */
+function layoutFor(remarkCount: number) {
+  const rows = Math.max(3, Math.ceil(remarkCount / REMARK_COLUMNS))
+  const remarksHeight = MARKER_BAND + 10 + rows * REMARK_ROW_HEIGHT + 6
+  const instructionY = REMARKS_TOP + remarksHeight + 16
+  const footerY = instructionY + 40
+  const recapTop = footerY + 36
+  return {
+    rows,
+    remarksHeight,
+    instructionY,
+    footerY,
+    recapTop,
+    height: recapTop + RECAP_HEIGHT,
+  }
+}
 
 const RULE = INK
 // Text weights here are 400/700 only: jsPDF has no 600-weight Helvetica, and a
@@ -85,8 +108,8 @@ export function LogSheet({
   // The form's From and To describe *this day's* run, not the whole trip. Day 2
   // of a Chicago-to-Denver haul starts wherever the driver shut down, which is
   // the middle of Kansas, not Chicago.
-  const fromLabel = from ?? day.entries[0]?.location_label ?? ''
-  const toLabel = to ?? day.entries.at(-1)?.location_label ?? fromLabel
+  const fromLabel = from ?? shortPlace(day.entries[0]?.location_label ?? '')
+  const toLabel = to ?? (shortPlace(day.entries.at(-1)?.location_label ?? '') || fromLabel)
 
   // The duty line is one polyline: a horizontal run on each status's row, with
   // the vertical connector falling out of consecutive points sharing an x.
@@ -97,28 +120,11 @@ export function LogSheet({
     return [`${start.toFixed(2)},${y}`, `${end.toFixed(2)},${y}`]
   })
 
-  // Remarks: city and state at each duty change.
-  //
-  // Two things crowd this row. A status change that does not move the truck --
-  // arriving somewhere and going on duty there -- repeats the location, so
-  // consecutive duplicates are dropped. And changes close together in time
-  // print on top of each other, so anything within REMARK_STAGGER_MINUTES of
-  // its neighbour drops to a deeper lane rather than being discarded: in a busy
-  // stretch the crowded label is often the one a reader most wants.
-  const remarks: { x: number; label: string; lane: number }[] = []
-  for (const entry of day.entries) {
-    if (!entry.location_label) continue
-    const previous = remarks.at(-1)
-    if (previous && previous.label === entry.location_label) continue
-
-    const x = xForHour(hoursIntoDay(entry.start_time, tzOffsetMinutes))
-    const crowded = previous !== undefined && x - previous.x < REMARK_STAGGER_WIDTH
-    remarks.push({
-      x,
-      label: entry.location_label,
-      lane: crowded ? (previous.lane + 1) % REMARK_LANES : 0,
-    })
-  }
+  const remarks = buildRemarks(day.entries, tzOffsetMinutes, (iso) =>
+    hoursIntoDay(iso, tzOffsetMinutes),
+  )
+  const layout = layoutFor(remarks.length)
+  const onDutyToday = day.totals.driving + day.totals.on_duty
 
   const totals: [string, number][] = [
     ['OFF_DUTY', day.totals.off_duty],
@@ -131,14 +137,14 @@ export function LogSheet({
     <svg
       id={`log-sheet-${day.day_number}`}
       data-testid={`log-sheet-${day.day_number}`}
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      viewBox={`0 0 ${WIDTH} ${layout.height}`}
       width="100%"
       role="img"
       aria-label={`Driver's daily log for ${day.date}: ${formatHours(day.totals.driving)} hours driving, ${formatHours(day.totals.on_duty)} hours on duty not driving, ${day.total_miles} miles.`}
       style={{ display: 'block', background: '#ffffff', minWidth: 760 }}
       fontFamily={SVG_FONT_STACK}
     >
-      <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill="#ffffff" />
+      <rect x="0" y="0" width={WIDTH} height={layout.height} fill="#ffffff" />
 
       <Header
         month={month}
@@ -164,9 +170,15 @@ export function LogSheet({
 
       <TotalsColumn totals={totals} grandTotal={day.totals.total} />
 
-      <Remarks remarks={remarks} />
+      <Remarks remarks={remarks} layout={layout} />
 
-      <Footer totalMiles={day.total_miles} />
+      <Footer y={layout.footerY} />
+
+      <Recap
+        top={layout.recapTop}
+        onDutyToday={onDutyToday}
+        cycleHoursUsed={day.cycle_hours_used_end ?? null}
+      />
     </svg>
   )
 }
@@ -221,13 +233,21 @@ function Header({
         </text>
       </g>
 
-      <FilledLine x={24} y={122} width={330} label="From" value={from} />
-      <FilledLine x={382} y={122} width={330} label="To" value={to} />
+      <FilledLine x={24} y={122} width={300} label="From" value={from} />
+      <FilledLine x={352} y={122} width={300} label="To" value={to} />
+      {/* The form has both boxes. With one driver in one truck they agree. */}
       <FilledLine
-        x={740}
+        x={680}
         y={122}
-        width={236}
+        width={140}
         label="Total miles driving today"
+        value={String(Math.round(totalMiles))}
+      />
+      <FilledLine
+        x={840}
+        y={122}
+        width={136}
+        label="Total mileage today"
         value={String(Math.round(totalMiles))}
       />
 
@@ -252,15 +272,15 @@ function Header({
         x={24}
         y={224}
         width={468}
-        label="Truck / tractor and trailer numbers"
+        label="Truck/tractor and trailer numbers or license plate(s)/state (show each unit)"
         hint="to be completed by the driver"
       />
       <FilledLine
         x={520}
         y={224}
         width={456}
-        label="Vehicle odometer / VIN"
-        hint="to be completed by the driver"
+        label="Home terminal address"
+        hint="to be completed by the carrier"
       />
     </g>
   )
@@ -483,14 +503,31 @@ function TotalsColumn({ totals, grandTotal }: { totals: [string, number][]; gran
   )
 }
 
-function Remarks({ remarks }: { remarks: { x: number; label: string; lane: number }[] }) {
+function Remarks({ remarks, layout }: { remarks: Remark[]; layout: ReturnType<typeof layoutFor> }) {
+  // Stagger markers that would touch: a 15-minute inspection sits ~8px from
+  // the change that follows it.
+  const markers: { remark: Remark; x: number; cx: number; lane: number }[] = []
+  for (const remark of remarks) {
+    const x = xForHour(remark.hour)
+    const previous = markers.at(-1)
+    const crowded = previous !== undefined && x - previous.x < MARKER_MIN_GAP
+    markers.push({
+      remark,
+      x,
+      // Held inside the box at midnight; the leader still starts at the true x.
+      cx: Math.min(Math.max(x, GRID_LEFT + MARKER_RADIUS + 2), GRID_RIGHT - MARKER_RADIUS - 2),
+      lane: crowded ? (previous.lane + 1) % MARKER_LANES : 0,
+    })
+  }
+
+  const listTop = REMARKS_TOP + MARKER_BAND + 10
   return (
     <g>
       <rect
         x={GRID_LEFT}
         y={REMARKS_TOP}
         width={GRID_WIDTH}
-        height={REMARKS_HEIGHT}
+        height={layout.remarksHeight}
         fill="#ffffff"
         stroke={RULE}
         strokeWidth="1"
@@ -498,62 +535,172 @@ function Remarks({ remarks }: { remarks: { x: number; label: string; lane: numbe
       <text x={GRID_LEFT - 10} y={REMARKS_TOP + 16} fontSize="11" textAnchor="end" fill={RULE}>
         Remarks
       </text>
+      <line
+        x1={GRID_LEFT}
+        y1={REMARKS_TOP + MARKER_BAND}
+        x2={GRID_RIGHT}
+        y2={REMARKS_TOP + MARKER_BAND}
+        stroke={HAIRLINE}
+        strokeWidth="0.6"
+      />
 
-      {remarks.map(({ x, label, lane }) => {
-        // A deeper lane means a longer leader line, so a staggered label still
-        // points unambiguously at its own moment on the grid.
-        const leaderEnd = REMARKS_TOP + 14 + lane * REMARK_LANE_DEPTH
-        const labelX = Math.min(
-          Math.max(x, GRID_LEFT + REMARK_EDGE_INSET_LEFT),
-          GRID_RIGHT - REMARK_EDGE_INSET_RIGHT,
-        )
+      {markers.map(({ remark, x, cx, lane }) => {
+        const cy = REMARKS_TOP + 14 + lane * MARKER_LANE_DEPTH
         return (
-          <g key={`${x}-${label}`}>
-            <line x1={x} y1={REMARKS_TOP} x2={x} y2={leaderEnd} stroke={RULE} strokeWidth="0.8" />
-            <text
-              x={labelX}
-              y={leaderEnd + 4}
-              fontSize="9"
-              fill={RULE}
-              transform={`rotate(90 ${labelX} ${leaderEnd + 4})`}
-            >
-              {label.length > 22 ? `${label.slice(0, 22)}…` : label}
+          <g key={`marker-${remark.number}`} data-testid="remark-marker">
+            <line
+              x1={x}
+              y1={REMARKS_TOP}
+              x2={cx}
+              y2={cy - MARKER_RADIUS}
+              stroke={RULE}
+              strokeWidth="0.8"
+            />
+            <circle
+              cx={cx}
+              cy={cy}
+              r={MARKER_RADIUS}
+              fill="#ffffff"
+              stroke={RULE}
+              strokeWidth="0.8"
+            />
+            <text x={cx} y={cy + 3} fontSize="8" fontWeight="700" textAnchor="middle" fill={RULE}>
+              {remark.number}
             </text>
           </g>
         )
       })}
+
+      {remarks.map((remark, index) => {
+        const column = Math.floor(index / layout.rows)
+        const row = index % layout.rows
+        const x = GRID_LEFT + 10 + column * REMARK_COLUMN_WIDTH
+        const y = listTop + row * REMARK_ROW_HEIGHT + 9
+        return (
+          <g key={`remark-${remark.number}`} data-testid="remark">
+            <text x={x + 10} y={y} fontSize="8" fontWeight="700" textAnchor="end" fill={RULE}>
+              {remark.number}
+            </text>
+            {/* Separate elements at fixed x, one plain string each: svg2pdf.js
+                collapses whitespace between a text node and a <tspan>, which ran
+                "00:00Dunbar, NE" together in the exported PDF. */}
+            <text x={x + 16} y={y} fontSize="9" fill={RULE}>
+              {remark.time}
+            </text>
+            <text x={x + 46} y={y} fontSize="9" fill={RULE}>
+              {`${remark.place} — ${remark.activity}`}
+            </text>
+          </g>
+        )
+      })}
+
+      <text x={GRID_LEFT} y={layout.instructionY} fontSize="9.5" fill={INK_MUTED}>
+        Enter name of place you reported and where released from work and when and where each change
+        of duty occurred. Use time standard of home terminal.
+      </text>
     </g>
   )
 }
 
-function Footer({ totalMiles }: { totalMiles: number }) {
-  const y = REMARKS_TOP + REMARKS_HEIGHT + 34
+function Footer({ y }: { y: number }) {
   return (
     <g>
       <FilledLine
         x={24}
         y={y}
-        width={300}
+        width={220}
         label="Shipping document number(s)"
         hint="bill of lading or manifest no."
       />
       <FilledLine
-        x={352}
+        x={268}
         y={y}
-        width={300}
+        width={220}
+        label="Shipper & commodity"
+        hint="to be completed by the driver"
+      />
+      <FilledLine
+        x={512}
+        y={y}
+        width={220}
         label="Driver's signature in full"
         hint="sign on printing"
       />
       <FilledLine
-        x={680}
+        x={756}
         y={y}
-        width={296}
+        width={220}
         label="Co-driver's name (if any)"
         hint="none — single driver"
       />
-      <text x={24} y={y + 42} fontSize="9.5" fill={INK_MUTED}>
-        {Math.round(totalMiles).toLocaleString('en-US')} miles driven today. Times shown in the home
-        terminal timezone.
+    </g>
+  )
+}
+
+/**
+ * The form's 70-hour/8-day recap. The brief takes prior cycle hours as a single
+ * total, so how they fell across the last eight days is unknown; A and C are
+ * both the running cycle total since the last 34-hour restart, which is the
+ * conservative reading the planner itself uses (see the README's assumptions).
+ */
+function Recap({
+  top,
+  onDutyToday,
+  cycleHoursUsed,
+}: {
+  top: number
+  onDutyToday: number
+  cycleHoursUsed: number | null
+}) {
+  const known = cycleHoursUsed !== null
+  const cells: [string, string, string][] = [
+    ['On-duty hours today', 'total of lines 3 & 4', formatHours(onDutyToday)],
+    ['A. On duty last 7 days', 'including today', known ? formatHours(cycleHoursUsed) : '—'],
+    [
+      'B. Available tomorrow',
+      '70 hr. minus A*',
+      known ? formatHours(Math.max(0, 70 - cycleHoursUsed)) : '—',
+    ],
+    ['C. On duty last 8 days', 'including today', known ? formatHours(cycleHoursUsed) : '—'],
+  ]
+  return (
+    <g data-testid="recap">
+      <line x1="24" y1={top} x2="976" y2={top} stroke={RULE} strokeWidth="1" />
+      <text x="24" y={top + 22} fontSize="12" fontWeight="700" fill={RULE}>
+        Recap
+      </text>
+      <text x="24" y={top + 36} fontSize="9" fill={INK_MUTED}>
+        complete at end of day
+      </text>
+      <text x="24" y={top + 50} fontSize="9" fill={INK_MUTED}>
+        70 hour / 8 day drivers
+      </text>
+
+      {cells.map(([label, caption, value], index) => {
+        const x = 150 + index * 207
+        return (
+          <g key={label} transform={`translate(${x}, ${top + 12})`}>
+            <text x="4" y="20" fontSize="15" fontWeight="700" fill={RULE}>
+              {value}
+            </text>
+            <line x1="0" y1="27" x2="190" y2="27" stroke={RULE} strokeWidth="1" />
+            <text x="0" y="40" fontSize="9.5" fill={RULE}>
+              {label}
+            </text>
+            <text x="0" y="52" fontSize="9" fill={INK_MUTED}>
+              {caption}
+            </text>
+          </g>
+        )
+      })}
+
+      <text x="150" y={top + 84} fontSize="8.5" fill={INK_MUTED}>
+        *If you took 34 consecutive hours off duty you have 70 hours available. Prior cycle hours
+        are entered as one total,
+      </text>
+      <text x="150" y={top + 96} fontSize="8.5" fill={INK_MUTED}>
+        so A and C both show the cycle total since the last 34-hour restart. The 60-hour/7-day
+        columns do not apply to this driver.
       </text>
     </g>
   )

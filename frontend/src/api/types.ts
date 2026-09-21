@@ -89,6 +89,8 @@ export interface LogDay {
     on_duty: number
     total: number
   }
+  /** Cycle hours used at this day's 24:00, for the recap. Null on older trips. */
+  cycle_hours_used_end: number | null
   entries: DutyEntry[]
 }
 
@@ -114,6 +116,8 @@ export interface Assumptions {
   fuel_stop_hours: number
   pickup_hours: number
   dropoff_hours: number
+  /** Pre-trip and post-trip inspection, each, at the start and end of every shift. */
+  inspection_hours: number
 }
 
 export interface Trip {

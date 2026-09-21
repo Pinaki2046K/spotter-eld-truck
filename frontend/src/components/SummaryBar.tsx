@@ -53,8 +53,9 @@ export function SummaryBar({
         {assumptions.average_speed_mph} mph; fuelling at least every{' '}
         {assumptions.fuel_interval_miles.toLocaleString('en-US')} miles (
         {formatDuration(assumptions.fuel_stop_hours)}); {formatDuration(assumptions.pickup_hours)}{' '}
-        to load and {formatDuration(assumptions.dropoff_hours)} to unload. Route via{' '}
-        {summary.routing_provider === 'osrm' ? 'OSRM' : 'OpenRouteService'}.
+        to load and {formatDuration(assumptions.dropoff_hours)} to unload; a{' '}
+        {formatDuration(assumptions.inspection_hours)} vehicle inspection opens and closes every
+        shift. Route via {summary.routing_provider === 'osrm' ? 'OSRM' : 'OpenRouteService'}.
       </p>
     </section>
   )
