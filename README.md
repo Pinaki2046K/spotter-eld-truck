@@ -37,8 +37,8 @@ Django, so there is no CORS to configure either. The two exported variables are 
 fails safe rather than running in debug mode on a key published in this repo.
 
 ```bash
-cd backend  && .venv/bin/python -m pytest -q   # 103 tests, engine + API + settings
-cd frontend && npm run test -- --run           # 50 tests, formatting + components
+cd backend  && .venv/bin/python -m pytest -q   # 104 tests, engine + API + settings
+cd frontend && npm run test -- --run           # 53 tests, formatting + components
 ```
 
 ## How it works
