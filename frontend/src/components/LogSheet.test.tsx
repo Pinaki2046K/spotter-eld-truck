@@ -136,10 +136,12 @@ describe('the sheet as a document', () => {
     ])
   })
 
-  it('matches the paper form: both mileage boxes, home terminal, no odometer line', () => {
+  it('matches the paper form: driving miles filled, total mileage left to the driver, no odometer line', () => {
     const container = renderSheet()
     expect(headerValue(container, 'Total miles driving today')).toBe('605')
-    expect(headerValue(container, 'Total mileage today')).toBe('605')
+    // Odometer mileage can include non-CMV movement the app cannot know, so it
+    // is left for the driver rather than copied from the driving miles.
+    expect(headerValue(container, 'Total mileage today')).toBe('to be completed by the driver')
     expect(screen.getByText('Home terminal address')).toBeInTheDocument()
     expect(screen.getByText('Shipper & commodity')).toBeInTheDocument()
     expect(

@@ -235,7 +235,9 @@ function Header({
 
       <FilledLine x={24} y={122} width={300} label="From" value={from} />
       <FilledLine x={352} y={122} width={300} label="To" value={to} />
-      {/* The form has both boxes. With one driver in one truck they agree. */}
+      {/* Driving miles are ours to fill. Total mileage is the odometer's figure for the
+          day, which can include non-CMV movement the app cannot know, so it is left
+          for the driver like the other unknown fields. */}
       <FilledLine
         x={680}
         y={122}
@@ -248,7 +250,7 @@ function Header({
         y={122}
         width={136}
         label="Total mileage today"
-        value={String(Math.round(totalMiles))}
+        hint="to be completed by the driver"
       />
 
       <FilledLine
