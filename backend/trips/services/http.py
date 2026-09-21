@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 
 import requests
 from django.conf import settings
@@ -15,16 +16,27 @@ logger = logging.getLogger(__name__)
 RETRY_BACKOFF_SECONDS = 0.4
 
 
-def get_json(url: str, *, params: dict | None = None, headers: dict | None = None) -> dict | list:
+def get_json(
+    url: str,
+    *,
+    params: dict | None = None,
+    headers: dict | None = None,
+    before_attempt: Callable[[], None] | None = None,
+) -> dict | list:
     """GET with an 8-second ceiling and a single backed-off retry.
 
     A timeout surfaces as UPSTREAM_TIMEOUT rather than a stack trace, which is
     what lets the frontend say something specific instead of "failed".
+
+    `before_attempt` runs before every attempt, the retry included, so a
+    rate-limited upstream can throttle each request rather than only the first.
     """
     timeout = settings.UPSTREAM_TIMEOUT_SECONDS
     last_error: Exception | None = None
 
     for attempt in (1, 2):
+        if before_attempt is not None:
+            before_attempt()
         try:
             response = requests.get(url, params=params, headers=headers, timeout=timeout)
         except requests.Timeout as exc:

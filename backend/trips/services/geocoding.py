@@ -68,7 +68,6 @@ def search(query: str, limit: int = 6) -> list[Place]:
     if cached is not None:
         return [Place(**row) for row in cached.results][:limit]
 
-    _throttle()
     payload = get_json(
         f"{settings.NOMINATIM_BASE_URL}/search",
         params={
@@ -79,6 +78,8 @@ def search(query: str, limit: int = 6) -> list[Place]:
             "limit": max(limit, 6),
         },
         headers={"User-Agent": settings.NOMINATIM_USER_AGENT, "Accept-Language": "en-US"},
+        # Throttled per attempt: the retry after a failure is a request too.
+        before_attempt=_throttle,
     )
 
     places = [place for place in (_to_place(row) for row in payload) if place is not None]

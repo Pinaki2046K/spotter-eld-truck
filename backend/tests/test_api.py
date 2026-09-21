@@ -201,12 +201,11 @@ def test_geocode_results_are_cached_after_the_first_lookup(client, monkeypatch):
     ]
     calls = []
 
-    def fake_get_json(url, params=None, headers=None):
+    def fake_get_json(url, params=None, headers=None, before_attempt=None):
         calls.append(url)
         return payload
 
     monkeypatch.setattr(geocoding, "get_json", fake_get_json)
-    monkeypatch.setattr(geocoding, "_throttle", lambda: None)
 
     first = geocoding.search("Chicago")
     second = geocoding.search("  chicago  ")
@@ -286,3 +285,37 @@ def test_the_nominatim_throttle_does_not_wait_once_a_second_has_passed(monkeypat
 
     assert sleeps == []
     assert NominatimThrottle.objects.get(pk=1).last_request_at > stale
+
+
+@pytest.mark.django_db
+def test_a_retried_nominatim_request_is_throttled_too(monkeypatch):
+    """The retry after a failure is a second request to Nominatim, so it has to
+    wait its turn like the first one rather than follow 0.4 s behind it."""
+    import requests
+
+    from trips.services import http
+
+    class Response:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return []
+
+    attempts = iter([requests.ConnectionError("reset"), Response()])
+
+    def flaky_get(*args, **kwargs):
+        outcome = next(attempts)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    throttled: list[str] = []
+    monkeypatch.setattr(http.requests, "get", flaky_get)
+    monkeypatch.setattr(http.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(geocoding, "_throttle", lambda: throttled.append("wait"))
+
+    assert geocoding.search("Nowhere at all") == []
+    assert throttled == ["wait", "wait"]
