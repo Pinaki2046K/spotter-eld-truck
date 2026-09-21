@@ -75,9 +75,21 @@ export function toIsoWithOffset(localValue: string, tzOffsetMinutes: number): st
   return `${withSeconds}${sign}${hours}:${minutes}`
 }
 
-/** The browser's current offset, in minutes east of UTC. */
-export function localOffsetMinutes(): number {
-  return -new Date().getTimezoneOffset()
+/**
+ * The browser's offset, in minutes east of UTC, *at* a local datetime-local
+ * value -- not today's. Planning on Oct 30 for a Nov 3 departure must send
+ * Chicago's -06:00, not the -05:00 in force when the form was filled in, or
+ * every time on the sheets lands an hour off. A value without an offset
+ * parses as local time, daylight saving included.
+ */
+export function localOffsetMinutesAt(localValue: string): number {
+  const moment = new Date(localValue)
+  return -(Number.isNaN(moment.getTime()) ? new Date() : moment).getTimezoneOffset()
+}
+
+/** A datetime-local value with the offset in force at that moment. */
+export function localIsoWithOffset(localValue: string): string {
+  return toIsoWithOffset(localValue, localOffsetMinutesAt(localValue))
 }
 
 /** The next 06:00 local, as a `datetime-local` input value. */
@@ -97,5 +109,5 @@ export function nextLocalSixAm(): string {
  * to 06:00 UTC, and that offset is what the log sheets are drawn against.
  */
 export function defaultStartDatetime(): string {
-  return toIsoWithOffset(nextLocalSixAm(), localOffsetMinutes())
+  return localIsoWithOffset(nextLocalSixAm())
 }

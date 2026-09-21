@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import type { Place, TripRequest } from '../api/types'
 import { EXAMPLE_TRIP } from '../lib/exampleTrip'
-import { localOffsetMinutes, nextLocalSixAm, toIsoWithOffset } from '../lib/format'
+import { localIsoWithOffset, nextLocalSixAm } from '../lib/format'
 import { LocationField } from './LocationField'
 
 const CYCLE_LIMIT = 70
@@ -48,7 +48,7 @@ export function TripForm({ onSubmit, pending, fieldError, initial }: TripFormPro
       pickup_location: pickup,
       dropoff_location: dropoff,
       cycle_hours_used: Math.round(cycleValue * 10) / 10,
-      start_datetime: toIsoWithOffset(startLocal, localOffsetMinutes()),
+      start_datetime: localIsoWithOffset(startLocal),
     })
   }
 
@@ -63,7 +63,7 @@ export function TripForm({ onSubmit, pending, fieldError, initial }: TripFormPro
     // not applied yet.
     onSubmit({
       ...EXAMPLE_TRIP,
-      start_datetime: toIsoWithOffset(startLocal, localOffsetMinutes()),
+      start_datetime: localIsoWithOffset(startLocal),
     })
   }
 

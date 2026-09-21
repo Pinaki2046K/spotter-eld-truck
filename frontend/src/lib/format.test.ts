@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   formatDate,
@@ -8,6 +8,7 @@ import {
   formatTime,
   hoursIntoDay,
   splitLogDate,
+  localIsoWithOffset,
   toIsoWithOffset,
 } from './format'
 
@@ -58,5 +59,24 @@ describe('form input conversion', () => {
   it('attaches an explicit offset so the backend never has to guess', () => {
     expect(toIsoWithOffset('2026-09-22T06:00', -300)).toBe('2026-09-22T06:00:00-05:00')
     expect(toIsoWithOffset('2026-09-22T06:00', 330)).toBe('2026-09-22T06:00:00+05:30')
+  })
+})
+
+describe('the departure offset', () => {
+  // vi.stubEnv sets process.env.TZ, which Node applies to Date immediately.
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('is the offset on the departure date, not today, across a DST change', () => {
+    vi.stubEnv('TZ', 'America/Chicago')
+    // Chicago leaves daylight saving on Nov 1, 2026.
+    expect(localIsoWithOffset('2026-10-30T06:00')).toBe('2026-10-30T06:00:00-05:00')
+    expect(localIsoWithOffset('2026-11-03T06:00')).toBe('2026-11-03T06:00:00-06:00')
+  })
+
+  it('keeps a fixed offset where there is no daylight saving', () => {
+    vi.stubEnv('TZ', 'Asia/Kolkata')
+    expect(localIsoWithOffset('2026-11-03T06:00')).toBe('2026-11-03T06:00:00+05:30')
   })
 })
