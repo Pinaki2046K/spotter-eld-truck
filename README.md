@@ -38,7 +38,7 @@ fails safe rather than running in debug mode on a key published in this repo.
 
 ```bash
 cd backend  && .venv/bin/python -m pytest -q   # 103 tests, engine + API + settings
-cd frontend && npm run test -- --run           # 49 tests, formatting + components
+cd frontend && npm run test -- --run           # 50 tests, formatting + components
 ```
 
 ## How it works

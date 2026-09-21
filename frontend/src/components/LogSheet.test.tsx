@@ -109,6 +109,14 @@ describe('the sheet as a document', () => {
     expect(screen.queryByText(/N\/A|TBD|Lorem/i)).toBeNull()
   })
 
+  it('renders placeholder hints as real characters, not escape sequences', () => {
+    // JSX attribute strings are not JS literals: hint="a \u2014 b" prints the
+    // backslash sequence verbatim. Entities or {'...'} expressions are decoded.
+    const container = renderSheet()
+    expect(screen.getByText('none \u2014 single driver')).toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/\\u[0-9a-f]{4}/i)
+  })
+
   it('writes remarks at each duty change, using the location at that moment', () => {
     const container = renderSheet()
     const remarks = [...container.querySelectorAll('text[transform^="rotate"]')].map(
