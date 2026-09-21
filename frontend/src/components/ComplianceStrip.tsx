@@ -60,16 +60,13 @@ function Gauge({ limit }: { limit: Limit }) {
 
   return (
     <div className="min-w-0">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate text-[12px] font-semibold tracking-wide text-[var(--color-ink-48)] uppercase">
-          {limit.label}
-        </span>
-        <span className="shrink-0 text-[11px] tabular-nums text-[var(--color-ink-48)]">
-          &sect;{limit.cfr}
-        </span>
-      </div>
+      {/* The label owns its own row. Sharing one with the CFR citation left
+          "Duty window" and "Since break" clipped in a narrow column. */}
+      <p className="truncate text-[12px] font-semibold tracking-wide text-[var(--color-ink-48)] uppercase">
+        {limit.label}
+      </p>
 
-      <p className="mt-1 text-[17px] leading-tight font-semibold tabular-nums">
+      <p className="mt-0.5 text-[17px] leading-tight font-semibold tabular-nums">
         {limit.used.toFixed(2)}
         <span className="text-[13px] font-normal text-[var(--color-ink-48)]">
           {' '}
@@ -88,7 +85,10 @@ function Gauge({ limit }: { limit: Limit }) {
         />
       </div>
 
-      <p className="mt-1 text-[11.5px] leading-snug text-[var(--color-ink-48)]">{limit.note}</p>
+      <p className="mt-1 text-[11.5px] leading-snug text-[var(--color-ink-48)]">
+        {limit.note}
+        <span className="block tabular-nums opacity-80">&sect;{limit.cfr}</span>
+      </p>
     </div>
   )
 }
