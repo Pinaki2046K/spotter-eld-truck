@@ -549,7 +549,7 @@ function Footer({ totalMiles }: { totalMiles: number }) {
         y={y}
         width={296}
         label="Co-driver's name (if any)"
-        hint="none &mdash; single driver"
+        hint="none — single driver"
       />
       <text x={24} y={y + 42} fontSize="9.5" fill={INK_MUTED}>
         {Math.round(totalMiles).toLocaleString('en-US')} miles driven today. Times shown in the home
