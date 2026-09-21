@@ -104,10 +104,18 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-[var(--color-hairline)] bg-white/85 backdrop-blur">
-        <div className="mx-auto flex max-w-[1440px] items-baseline justify-between gap-4 px-4 py-4 sm:px-6">
+        {/* Wraps rather than clipping: at tablet widths the rules line used to
+            run off the edge. It links to the footer, which explains the rules. */}
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 py-4 sm:px-6">
           <h1 className="text-[21px] font-semibold tracking-tight">Trip Planner &amp; ELD Logs</h1>
-          <p className="hidden text-[13px] text-[var(--color-ink-48)] sm:block">
-            Property-carrying &middot; 70 hrs / 8 days &middot; FMCSA &sect;395.3
+          <p className="min-w-0 text-[13px] text-[var(--color-ink-48)]">
+            Rules applied:{' '}
+            <a
+              href="#hos-rules"
+              className="text-[var(--color-accent)] underline-offset-2 hover:underline"
+            >
+              property-carrying driver, 70 hours in 8 days (FMCSA 49&nbsp;CFR&nbsp;&sect;395.3)
+            </a>
           </p>
         </div>
       </header>
@@ -210,13 +218,17 @@ export default function App() {
         {!pending && trip ? <LogSheets trip={trip} tzOffsetMinutes={tz} /> : null}
       </main>
 
-      <footer className="border-t border-[var(--color-hairline)] bg-white">
+      <footer
+        id="hos-rules"
+        className="scroll-mt-4 border-t border-[var(--color-hairline)] bg-white"
+      >
         <div className="mx-auto max-w-[1440px] px-4 py-6 text-[12.5px] leading-relaxed text-[var(--color-ink-48)] sm:px-6">
           Schedules follow 49 CFR &sect;395.3 for property-carrying drivers: 11 hours driving, a
           14-hour window from the first on-duty minute, a 30-minute break after 8 cumulative driving
-          hours, and 70 on-duty hours in 8 days. Split sleeper-berth pairings, short-haul and
-          adverse-conditions exceptions are out of scope. Map data &copy; OpenStreetMap
-          contributors.
+          hours, and no driving after 70 on-duty hours in 8 days until a 34-hour restart. Every
+          shift opens and closes with a 15-minute vehicle inspection. Split sleeper-berth pairings,
+          short-haul and adverse-conditions exceptions are out of scope. Map data &copy;
+          OpenStreetMap contributors.
         </div>
       </footer>
     </div>
