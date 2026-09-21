@@ -170,3 +170,14 @@ class RouteCache(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=("key",))]
+
+
+class NominatimThrottle(models.Model):
+    """The time of the last Nominatim request, in one row every worker shares.
+
+    Nominatim's 1 req/sec limit is per application. Gunicorn runs several
+    worker processes, so a module-level timestamp would allow one request per
+    second *each*; a locked database row holds the limit across all of them.
+    """
+
+    last_request_at = models.DateTimeField(null=True)

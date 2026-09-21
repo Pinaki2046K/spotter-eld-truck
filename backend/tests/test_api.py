@@ -251,3 +251,38 @@ def test_a_departure_is_drawn_at_the_hour_it_was_booked(client):
     local = start + timedelta(minutes=offset)
 
     assert (local.hour, local.minute) == (6, 0)
+
+
+@pytest.mark.django_db
+def test_the_nominatim_throttle_waits_on_a_request_made_by_another_worker(monkeypatch):
+    """The timestamp is read from the shared row, not process memory, so a
+    request another Gunicorn worker made a moment ago still forces a wait."""
+    from django.utils import timezone
+
+    from trips.models import NominatimThrottle
+
+    NominatimThrottle.objects.create(pk=1, last_request_at=timezone.now())
+    sleeps: list[float] = []
+    monkeypatch.setattr(geocoding.time, "sleep", sleeps.append)
+
+    geocoding._throttle()
+
+    assert len(sleeps) == 1
+    assert 0.9 < sleeps[0] <= 1.0
+
+
+@pytest.mark.django_db
+def test_the_nominatim_throttle_does_not_wait_once_a_second_has_passed(monkeypatch):
+    from django.utils import timezone
+
+    from trips.models import NominatimThrottle
+
+    stale = timezone.now() - timedelta(seconds=2)
+    NominatimThrottle.objects.create(pk=1, last_request_at=stale)
+    sleeps: list[float] = []
+    monkeypatch.setattr(geocoding.time, "sleep", sleeps.append)
+
+    geocoding._throttle()
+
+    assert sleeps == []
+    assert NominatimThrottle.objects.get(pk=1).last_request_at > stale

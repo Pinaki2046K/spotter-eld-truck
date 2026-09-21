@@ -11,15 +11,16 @@ import time
 from dataclasses import dataclass
 
 from django.conf import settings
+from django.db import transaction
+from django.utils import timezone
 
 from trips.errors import ApiError, ErrorCode
-from trips.models import GeocodeCache
+from trips.models import GeocodeCache, NominatimThrottle
 from trips.services.http import get_json
 
 # Nominatim's usage policy is roughly one request per second, per application.
 _RATE_LIMIT_SECONDS = 1.0
 _rate_lock = threading.Lock()
-_last_request_at = 0.0
 
 US_COUNTRY_CODES = {"us"}
 
@@ -35,13 +36,23 @@ class Place:
 
 
 def _throttle() -> None:
-    """Block just long enough to stay inside the published rate limit."""
-    global _last_request_at
-    with _rate_lock:
-        wait = _RATE_LIMIT_SECONDS - (time.monotonic() - _last_request_at)
-        if wait > 0:
-            time.sleep(wait)
-        _last_request_at = time.monotonic()
+    """Block just long enough to stay inside the published rate limit.
+
+    The last-request time lives in one database row, locked while we wait, so
+    the limit holds across every Gunicorn worker rather than per process. The
+    thread lock covers SQLite, where select_for_update is a no-op.
+    """
+    NominatimThrottle.objects.get_or_create(pk=1)
+    with _rate_lock, transaction.atomic():
+        row = NominatimThrottle.objects.select_for_update().get(pk=1)
+        if row.last_request_at is not None:
+            elapsed = (timezone.now() - row.last_request_at).total_seconds()
+            # Clamped, so a wall clock stepping backwards cannot stall a request.
+            wait = min(_RATE_LIMIT_SECONDS - elapsed, _RATE_LIMIT_SECONDS)
+            if wait > 0:
+                time.sleep(wait)
+        row.last_request_at = timezone.now()
+        row.save(update_fields=["last_request_at"])
 
 
 def search(query: str, limit: int = 6) -> list[Place]:
