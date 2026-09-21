@@ -37,7 +37,7 @@ Django, so there is no CORS to configure either. The two exported variables are 
 fails safe rather than running in debug mode on a key published in this repo.
 
 ```bash
-cd backend  && .venv/bin/python -m pytest -q   # 110 tests, engine + API + settings
+cd backend  && .venv/bin/python -m pytest -q   # 111 tests, engine + API + settings
 cd frontend && npm run test -- --run           # 75 tests, formatting + components, app
 ```
 
@@ -181,7 +181,7 @@ JSON only, no authentication.
 | `GET` | `/api/geocode/?q=` | Autocomplete proxy to Nominatim, throttled and cached |
 | `POST` | `/api/trips/` | Geocode, route, plan, persist, return the whole trip |
 | `GET` | `/api/trips/{uuid}/` | Retrieve a persisted trip, for shareable URLs |
-| `GET` | `/api/health/` | Liveness probe, used to keep the free dyno warm |
+| `GET`, `HEAD` | `/api/health/` | Liveness probe, used to keep the free dyno warm (HEAD for uptime monitors) |
 
 Every 4xx and 5xx uses one envelope so the frontend can say something specific rather than showing
 a generic failure toast:

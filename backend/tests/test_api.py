@@ -319,3 +319,19 @@ def test_a_retried_nominatim_request_is_throttled_too(monkeypatch):
 
     assert geocoding.search("Nowhere at all") == []
     assert throttled == ["wait", "wait"]
+
+
+@pytest.mark.django_db
+def test_health_answers_head_for_uptime_monitors(client):
+    """UptimeRobot and most monitors probe with HEAD by default. @api_view
+    narrows the allowed methods to exactly those it names, so HEAD has to be
+    listed; before it was, this returned 405."""
+    url = reverse("health")
+
+    head = client.head(url)
+    assert head.status_code == 200
+    assert head.content == b""  # a HEAD response carries headers only
+    assert head["Content-Type"] == client.get(url)["Content-Type"]
+
+    assert client.options(url).status_code == 200
+    assert client.post(url).status_code == 405

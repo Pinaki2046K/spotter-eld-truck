@@ -61,7 +61,11 @@ def geocode(request):
     return Response({"results": [place.as_dict() for place in results]})
 
 
-@api_view(["GET"])
+# HEAD is listed explicitly. Django aliases head to get only for methods in
+# http_method_names, and @api_view narrows that list to exactly the methods
+# named here (plus OPTIONS), so with GET alone a HEAD request was refused with
+# 405 before the alias applied. Uptime monitors default to HEAD.
+@api_view(["GET", "HEAD"])
 def health(request):  # noqa: ARG001
     """Liveness probe, and the answer to "which router is actually live?".
 
