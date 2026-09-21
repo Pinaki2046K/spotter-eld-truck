@@ -39,7 +39,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):  # noqa: ARG002
-        if not options["force"] and Trip.objects.filter(pk=EXAMPLE_TRIP_ID).exists():
+        if not options["force"] and self._is_current(EXAMPLE_TRIP_ID):
             self.stdout.write(f"Example trip {EXAMPLE_TRIP_ID} already seeded.")
             return
 
@@ -50,3 +50,14 @@ class Command(BaseCommand):
                 f"{trip.log_days.count()} log days, {trip.stops.count()} stops."
             )
         )
+
+    @staticmethod
+    def _is_current(trip_id: uuid.UUID) -> bool:
+        """A seeded trip from an older schema is stale, not done.
+
+        The release command reseeds on every deploy, so a fixture persisted
+        before a field existed would otherwise survive forever with that field
+        empty -- and this is the trip a reviewer opens first.
+        """
+        trip = Trip.objects.filter(pk=trip_id).first()
+        return trip is not None and bool(trip.compliance)
