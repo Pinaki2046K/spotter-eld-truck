@@ -162,7 +162,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="order-1 h-[420px] overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-white xl:order-2 xl:col-span-3 xl:h-[520px]">
+                  <div className="order-1 h-[420px] max-h-[72svh] overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-white xl:order-2 xl:col-span-3 xl:h-[520px] xl:max-h-none">
                     <Suspense fallback={<div className="skeleton h-full w-full" />}>
                       <RouteMap
                         legs={trip.route.legs}

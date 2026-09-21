@@ -115,8 +115,13 @@
 /* Leaflet's zoom buttons are 30px, below the 44px touch minimum. Enlarged only
    for coarse pointers so the desktop chrome keeps its intended proportions. */
 @media (pointer: coarse) {
-  .leaflet-touch .leaflet-bar a,
-  .leaflet-bar a {
+  /* Leaflet's own stylesheet is imported from the component, so it loads after
+     this file and wins at equal specificity. The extra class raises ours above
+     `.leaflet-touch .leaflet-bar a` rather than reaching for !important. */
+  .leaflet-touch .leaflet-bar a.leaflet-control-zoom-in,
+  .leaflet-touch .leaflet-bar a.leaflet-control-zoom-out,
+  .leaflet-bar a.leaflet-control-zoom-in,
+  .leaflet-bar a.leaflet-control-zoom-out {
     width: 44px;
     height: 44px;
     line-height: 44px;

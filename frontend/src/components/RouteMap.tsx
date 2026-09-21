@@ -1,7 +1,7 @@
 import 'leaflet/dist/leaflet.css'
 
 import L from 'leaflet'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
 
 import type { RouteLeg, Stop } from '../api/types'
@@ -53,6 +53,54 @@ function FitBounds({ legs }: { legs: RouteLeg[] }) {
   return null
 }
 
+/**
+ * On touch devices Leaflet sets `touch-action: none`, so a one-finger drag
+ * inside the map pans the map instead of scrolling the page. On a phone, where
+ * the map spans the full width, that traps the scroll: there is no margin left
+ * to swipe past it.
+ *
+ * The map therefore starts inert on coarse pointers and activates on a tap,
+ * which is the pattern embedded maps have settled on. Pointer devices are
+ * untouched.
+ */
+function TouchDragGuard({ onActiveChange }: { onActiveChange: (active: boolean) => void }) {
+  const map = useMap()
+
+  useEffect(() => {
+    const coarse = window.matchMedia('(pointer: coarse)').matches
+    if (!coarse) {
+      onActiveChange(true)
+      return
+    }
+
+    const container = map.getContainer()
+    const activate = () => {
+      map.dragging.enable()
+      map.touchZoom.enable()
+      onActiveChange(true)
+    }
+    const deactivate = () => {
+      map.dragging.disable()
+      map.touchZoom.disable()
+      onActiveChange(false)
+    }
+
+    deactivate()
+    container.addEventListener('click', activate)
+    container.addEventListener('touchstart', activate, { passive: true })
+    document.addEventListener('touchstart', (event) => {
+      if (!container.contains(event.target as Node)) deactivate()
+    })
+
+    return () => {
+      container.removeEventListener('click', activate)
+      container.removeEventListener('touchstart', activate)
+    }
+  }, [map, onActiveChange])
+
+  return null
+}
+
 function FlyToStop({ focused, stops }: { focused: RouteMapProps['focused']; stops: Stop[] }) {
   const map = useMap()
   useEffect(() => {
@@ -65,67 +113,77 @@ function FlyToStop({ focused, stops }: { focused: RouteMapProps['focused']; stop
 }
 
 export function RouteMap({ legs, stops, tzOffsetMinutes, highlighted, focused }: RouteMapProps) {
+  const [dragActive, setDragActive] = useState(true)
   const centre = useMemo<[number, number]>(() => {
     const first = legs[0]?.geometry[0]
     return first ? [first[0], first[1]] : [39.5, -98.35]
   }, [legs])
+  const onActiveChange = useCallback((active: boolean) => setDragActive(active), [])
 
   return (
-    <MapContainer
-      center={centre}
-      zoom={5}
-      scrollWheelZoom
-      style={{ height: '100%', width: '100%' }}
-      attributionControl
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        maxZoom={19}
-      />
-
-      {/* Deadhead leg dashed, loaded leg solid, so the empty miles read at a glance. */}
-      {legs.map((leg) => (
-        <Polyline
-          key={leg.sequence}
-          positions={leg.geometry as [number, number][]}
-          pathOptions={{
-            color: 'var(--color-accent)',
-            weight: 4,
-            opacity: leg.sequence === 1 ? 0.75 : 1,
-            dashArray: leg.sequence === 1 ? '10 8' : undefined,
-            lineCap: 'round',
-          }}
+    <div className="relative h-full w-full">
+      {!dragActive ? (
+        <p className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto w-max rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-white/90 px-3 py-1.5 text-[12px] text-[var(--color-ink-80)] backdrop-blur">
+          Tap the map to pan and zoom
+        </p>
+      ) : null}
+      <MapContainer
+        center={centre}
+        zoom={5}
+        scrollWheelZoom
+        style={{ height: '100%', width: '100%' }}
+        attributionControl
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          maxZoom={19}
         />
-      ))}
 
-      {stops.map((stop) => (
-        <Marker
-          key={stop.sequence}
-          position={[stop.lat, stop.lon]}
-          icon={pinIcon(stop, highlighted === stop.sequence)}
-          alt={`Stop ${stop.sequence}: ${STOP_LABELS[stop.stop_type]} at ${stop.location_label}`}
-          keyboard
-        >
-          <Popup>
-            <strong>
-              {stop.sequence}. {STOP_LABELS[stop.stop_type]}
-            </strong>
-            <br />
-            {stop.location_label}
-            <br />
-            {formatDateTime(stop.arrival_time, tzOffsetMinutes)}
-            {stop.duration_hours > 0 ? ` · ${formatDuration(stop.duration_hours)}` : ''}
-            <br />
-            <span style={{ color: '#6e6e73' }}>
-              Mile {formatMiles(stop.odometer_miles)} &middot; {stop.reason}
-            </span>
-          </Popup>
-        </Marker>
-      ))}
+        {/* Deadhead leg dashed, loaded leg solid, so the empty miles read at a glance. */}
+        {legs.map((leg) => (
+          <Polyline
+            key={leg.sequence}
+            positions={leg.geometry as [number, number][]}
+            pathOptions={{
+              color: 'var(--color-accent)',
+              weight: 4,
+              opacity: leg.sequence === 1 ? 0.75 : 1,
+              dashArray: leg.sequence === 1 ? '10 8' : undefined,
+              lineCap: 'round',
+            }}
+          />
+        ))}
 
-      <FitBounds legs={legs} />
-      <FlyToStop focused={focused} stops={stops} />
-    </MapContainer>
+        {stops.map((stop) => (
+          <Marker
+            key={stop.sequence}
+            position={[stop.lat, stop.lon]}
+            icon={pinIcon(stop, highlighted === stop.sequence)}
+            alt={`Stop ${stop.sequence}: ${STOP_LABELS[stop.stop_type]} at ${stop.location_label}`}
+            keyboard
+          >
+            <Popup>
+              <strong>
+                {stop.sequence}. {STOP_LABELS[stop.stop_type]}
+              </strong>
+              <br />
+              {stop.location_label}
+              <br />
+              {formatDateTime(stop.arrival_time, tzOffsetMinutes)}
+              {stop.duration_hours > 0 ? ` · ${formatDuration(stop.duration_hours)}` : ''}
+              <br />
+              <span style={{ color: '#6e6e73' }}>
+                Mile {formatMiles(stop.odometer_miles)} &middot; {stop.reason}
+              </span>
+            </Popup>
+          </Marker>
+        ))}
+
+        <FitBounds legs={legs} />
+        <FlyToStop focused={focused} stops={stops} />
+        <TouchDragGuard onActiveChange={onActiveChange} />
+      </MapContainer>
+    </div>
   )
 }
