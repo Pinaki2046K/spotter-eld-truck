@@ -30,6 +30,15 @@ describe('per-day binding limits', () => {
     expect(screen.getByText(/counts per shift, not per day/)).toBeInTheDocument()
   })
 
+  it('names a 34-hour restart as a restart, not a 10-hour reset', () => {
+    const stops = TRIP.stops.map((stop) =>
+      stop.stop_type === 'DAILY_RESET' ? { ...stop, stop_type: 'CYCLE_RESTART' as const } : stop,
+    )
+    render(<LogDayLimits day={withDriving(12.5)} stops={stops} tzOffsetMinutes={TZ} />)
+    expect(screen.getByText(/a 34-hour restart fell inside it/)).toBeInTheDocument()
+    expect(screen.queryByText(/10-hour reset fell inside/)).toBeNull()
+  })
+
   it('adds no note when the day is inside the shift limit', () => {
     render(<LogDayLimits day={withDriving(11)} stops={TRIP.stops} tzOffsetMinutes={TZ} />)
     expect(screen.queryByText(/not an 11-hour breach/)).toBeNull()

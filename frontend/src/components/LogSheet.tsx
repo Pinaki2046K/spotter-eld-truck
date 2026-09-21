@@ -29,6 +29,13 @@ const REMARK_STAGGER_MINUTES = 45
 const REMARK_STAGGER_WIDTH = (REMARK_STAGGER_MINUTES / 60) * HOUR_WIDTH
 const REMARK_LANES = 3
 const REMARK_LANE_DEPTH = 26
+/**
+ * Rotated 90 degrees, a label's glyphs sit just right of its x and its
+ * descenders just left. A duty change at midnight has x on the remarks box's
+ * border, so labels are held this far inside it; the leader keeps the true x.
+ */
+const REMARK_EDGE_INSET_LEFT = 3
+const REMARK_EDGE_INSET_RIGHT = 10
 
 const RULE = INK
 // Text weights here are 400/700 only: jsPDF has no 600-weight Helvetica, and a
@@ -496,15 +503,19 @@ function Remarks({ remarks }: { remarks: { x: number; label: string; lane: numbe
         // A deeper lane means a longer leader line, so a staggered label still
         // points unambiguously at its own moment on the grid.
         const leaderEnd = REMARKS_TOP + 14 + lane * REMARK_LANE_DEPTH
+        const labelX = Math.min(
+          Math.max(x, GRID_LEFT + REMARK_EDGE_INSET_LEFT),
+          GRID_RIGHT - REMARK_EDGE_INSET_RIGHT,
+        )
         return (
           <g key={`${x}-${label}`}>
             <line x1={x} y1={REMARKS_TOP} x2={x} y2={leaderEnd} stroke={RULE} strokeWidth="0.8" />
             <text
-              x={x}
+              x={labelX}
               y={leaderEnd + 4}
               fontSize="9"
               fill={RULE}
-              transform={`rotate(90 ${x} ${leaderEnd + 4})`}
+              transform={`rotate(90 ${labelX} ${leaderEnd + 4})`}
             >
               {label.length > 22 ? `${label.slice(0, 22)}…` : label}
             </text>

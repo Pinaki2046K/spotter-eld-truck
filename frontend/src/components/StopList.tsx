@@ -32,6 +32,9 @@ export function StopList({
   return (
     <ol className="divide-y divide-[var(--color-divider)]" aria-label="Scheduled stops">
       {rows.map(({ stop, date, showDate }) => {
+        // satisfies_break marks the stop that served as the 30-minute break.
+        // On a rest-break stop that is the stop's whole purpose, not an "also".
+        const alsoBreak = stop.satisfies_break && stop.stop_type !== 'REST_BREAK'
         return (
           <li key={stop.sequence}>
             {showDate ? (
@@ -46,7 +49,7 @@ export function StopList({
               onFocus={() => onHover(stop.sequence)}
               onBlur={() => onHover(null)}
               onClick={() => onSelect(stop.sequence)}
-              aria-label={`Stop ${stop.sequence}, ${STOP_LABELS[stop.stop_type]} at ${stop.location_label}, ${formatTime(stop.arrival_time, tzOffsetMinutes)}. ${stop.reason}.${stop.satisfies_break ? ' Also satisfies the 30-minute break.' : ''} Show on map.`}
+              aria-label={`Stop ${stop.sequence}, ${STOP_LABELS[stop.stop_type]} at ${stop.location_label}, ${formatTime(stop.arrival_time, tzOffsetMinutes)}. ${stop.reason}.${alsoBreak ? ' Also satisfies the 30-minute break.' : ''} Show on map.`}
               className={`flex w-full gap-3 px-4 py-3 text-left transition-colors ${
                 highlighted === stop.sequence
                   ? 'bg-[var(--color-accent-soft)]'
@@ -103,7 +106,7 @@ export function StopList({
                 </span>
 
                 {/* Why a compliant trip can show no separate break stop. */}
-                {stop.satisfies_break ? (
+                {alsoBreak ? (
                   <span className="mt-1.5 inline-flex items-center gap-1 rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-pearl)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-duty-off)]">
                     <svg
                       width="10"

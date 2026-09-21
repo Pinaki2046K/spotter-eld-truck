@@ -71,6 +71,23 @@ describe('the satisfied 30-minute break', () => {
     expect(screen.getAllByText(/Also satisfies the 30-min break/)).toHaveLength(1)
   })
 
+  it('does not tell a rest-break stop that it also satisfies the break it is', () => {
+    const restBreak = {
+      ...TRIP.stops[2],
+      sequence: 4,
+      stop_type: 'REST_BREAK' as const,
+      location_label: 'Gibbon, NE',
+      reason: '30-minute break: 8 cumulative driving hours reached',
+      satisfies_break: true,
+    }
+    renderList({ stops: [...TRIP.stops, restBreak] })
+    const row = screen.getByRole('button', { name: /Stop 4/ })
+    expect(row).not.toHaveTextContent('Also satisfies')
+    expect(row).not.toHaveAccessibleName(/Also satisfies/)
+    // The pickup still carries its credit.
+    expect(screen.getAllByText(/Also satisfies the 30-min break/)).toHaveLength(1)
+  })
+
   it('announces the credit to screen readers too', () => {
     renderList()
     expect(screen.getByRole('button', { name: /Stop 3, Pickup/ })).toHaveAccessibleName(

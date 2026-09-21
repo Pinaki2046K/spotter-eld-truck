@@ -23,6 +23,12 @@ function stopsOnDay(stops: Stop[], day: LogDay, tzOffsetMinutes: number): Stop[]
   return stops.filter((stop) => localDateIso(stop.arrival_time, tzOffsetMinutes) === day.date)
 }
 
+/** "a 10-hour reset", "a 34-hour restart", or "2 resets" -- named for what actually happened. */
+function resetPhrase(resets: Stop[]): string {
+  if (resets.length !== 1) return `${resets.length} resets`
+  return `a ${BINDING_LABELS[resets[0].stop_type]}`
+}
+
 export function LogDayLimits({
   day,
   stops,
@@ -61,9 +67,8 @@ export function LogDayLimits({
       {exceedsShiftLimit ? (
         <span className="text-[11.5px] leading-snug text-[var(--color-ink-48)]">
           {day.totals.driving.toFixed(2)} h driving across this calendar day is not an 11-hour
-          breach: {resets.length === 1 ? 'a' : `${resets.length}`}{' '}
-          {resets.length === 1 ? '10-hour reset' : 'resets'} fell inside it, and the driving limit
-          counts per shift, not per day.
+          breach: {resetPhrase(resets)} fell inside it, and the driving limit counts per shift, not
+          per day.
         </span>
       ) : null}
     </div>

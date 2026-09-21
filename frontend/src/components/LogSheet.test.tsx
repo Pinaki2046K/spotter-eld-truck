@@ -163,6 +163,17 @@ describe('remarks crowding', () => {
     expect(labels.filter((l) => l === 'Chicago, Illinois')).toHaveLength(1)
   })
 
+  it('keeps a midnight remark inside the box while its leader marks true midnight', () => {
+    // DAY_ONE opens at 05:00Z, which is 00:00 Central: x lands on the border.
+    const container = renderSheet()
+    const label = [...container.querySelectorAll('text[transform^="rotate"]')].find(
+      (n) => n.textContent === 'Chicago, Illinois',
+    )!
+    const leader = label.previousElementSibling!
+    expect(Number(leader.getAttribute('x1'))).toBeCloseTo(GRID_LEFT, 6)
+    expect(Number(label.getAttribute('x'))).toBeGreaterThanOrEqual(GRID_LEFT + 3)
+  })
+
   it('staggers labels that fall within 45 minutes instead of dropping one', () => {
     const base = DAY_ONE.entries[0]
     const crowded = {
