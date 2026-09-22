@@ -53,8 +53,7 @@ class PlannerInput:
                 raise HOSPlanningError(f"Leg {leg.sequence} has no geometry.")
 
 
-# Human-readable reasons.  These end up on map markers and in the stop list, so
-# a grader can audit why each stop exists without reading the code.
+# Human-readable reasons, shown on the map markers and in the stop list.
 REASON_BREAK = "30-minute break: 8 cumulative driving hours reached"
 REASON_FUEL = "Fuel stop: {miles:,.0f} miles since last fuelling"
 REASON_RESET_DRIVING = "10-hour reset: 11-hour driving limit reached"

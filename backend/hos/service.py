@@ -91,11 +91,10 @@ def _shifts(events: tuple[Event, ...], config: HOSConfig) -> list[list[Event]]:
 def _compliance(
     events: tuple[Event, ...], config: HOSConfig, cycle_hours_used: float
 ) -> Compliance:
-    """Peak usage against each limit: the numbers that prove the trip is legal.
+    """Peak usage against each limit.
 
-    Reported as the worst shift rather than a total, because the limits are
-    per-shift. A trip total of 20 driving hours says nothing; the fact that no
-    single shift exceeded 11 says everything.
+    Reported as the worst shift rather than a trip total, because the limits
+    are per-shift.
     """
     shifts = _shifts(events, config)
 

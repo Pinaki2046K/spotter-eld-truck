@@ -104,8 +104,7 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-[var(--color-hairline)] bg-white/85 backdrop-blur">
-        {/* Wraps rather than clipping: at tablet widths the rules line used to
-            run off the edge. It links to the footer, which explains the rules. */}
+        {/* Wraps at tablet widths. Links to the footer, which explains the rules. */}
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 py-4 sm:px-6">
           <h1 className="text-[21px] font-semibold tracking-tight">Trip Planner &amp; ELD Logs</h1>
           <p className="min-w-0 text-[13px] text-[var(--color-ink-48)]">

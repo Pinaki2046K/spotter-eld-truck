@@ -61,13 +61,12 @@ def geocode(request):
     return Response({"results": [place.as_dict() for place in results]})
 
 
-# HEAD is listed explicitly. Django aliases head to get only for methods in
-# http_method_names, and @api_view narrows that list to exactly the methods
-# named here (plus OPTIONS), so with GET alone a HEAD request was refused with
-# 405 before the alias applied. Uptime monitors default to HEAD.
+# HEAD is listed explicitly: @api_view allows only the methods named here
+# (plus OPTIONS), so GET alone would answer HEAD with 405. Uptime monitors
+# default to HEAD.
 @api_view(["GET", "HEAD"])
 def health(request):  # noqa: ARG001
-    """Liveness probe, and the answer to "which router is actually live?".
+    """Liveness probe that also reports which routing provider is configured.
 
     Routing falls back to OSRM silently by design, so without this the only way
     to know which provider a deployment is using is to create a trip and read

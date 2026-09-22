@@ -149,8 +149,8 @@ class DutyEntry(models.Model):
 
 
 class GeocodeCache(models.Model):
-    """Nominatim allows roughly 1 request/second.  This cache is a functional
-    requirement for autocomplete, not an optimisation."""
+    """Nominatim allows roughly 1 request/second, so autocomplete needs this
+    cache to stay under the limit."""
 
     query = models.CharField(max_length=255, unique=True)
     #: The raw Nominatim result list, already trimmed to the fields we use.

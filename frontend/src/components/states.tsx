@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { ApiError } from '../api/client'
 import { US_OUTLINE_PATH, US_OUTLINE_VIEWBOX } from '../lib/usOutline'
 
-/** The staged progress line, not a spinner: the wait has real phases. */
+/** Staged progress messages, one per phase of the request. */
 const STAGES = ['Geocoding…', 'Routing…', 'Planning hours…', 'Drawing log sheets…']
 const STAGE_MS = 1400
 
@@ -35,8 +35,7 @@ export function ResultSkeleton() {
 export function EmptyState({ onLoadExample }: { onLoadExample: () => void }) {
   return (
     <div className="relative flex min-h-[420px] flex-col items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-white px-6 py-14 text-center">
-      {/* A muted United States sitting behind the copy: the shape says what the
-          tool is about before a word is read. Decorative, so hidden from AT. */}
+      {/* Muted US outline behind the copy. Decorative, so hidden from AT. */}
       <svg
         viewBox={US_OUTLINE_VIEWBOX}
         aria-hidden="true"
@@ -68,7 +67,7 @@ export function EmptyState({ onLoadExample }: { onLoadExample: () => void }) {
   )
 }
 
-/** Distinct copy per error code, rather than one generic failure toast. */
+/** Error copy per error code. */
 const ERROR_TITLES: Record<string, string> = {
   GEOCODE_NOT_FOUND: 'We could not find that address',
   OUT_OF_COUNTRY: 'That location is outside the United States',

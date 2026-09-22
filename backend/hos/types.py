@@ -161,7 +161,7 @@ class TripSummary:
 
 @dataclass(frozen=True)
 class Compliance:
-    """Peak usage against each binding limit, so the schedule can be audited.
+    """Peak usage against each binding limit.
 
     Per-shift limits are reported as the worst shift on the trip: if the
     hardest shift stayed inside 11 hours, every shift did.

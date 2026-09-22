@@ -3,9 +3,8 @@ import type { Compliance } from '../api/types'
 /**
  * The four binding HOS limits, with what this trip actually used against each.
  *
- * The schedule is only trustworthy if it can be checked, and checking it by
- * reading a stop list is slow. Per-shift limits are shown as the worst shift on
- * the trip: if the hardest shift stayed inside 11 hours, every shift did.
+ * Per-shift limits are shown as the worst shift on the trip: if the hardest
+ * shift stayed inside 11 hours, every shift did.
  */
 
 interface Limit {
@@ -60,8 +59,7 @@ function Gauge({ limit }: { limit: Limit }) {
 
   return (
     <div className="min-w-0">
-      {/* The label owns its own row. Sharing one with the CFR citation left
-          "Duty window" and "Since break" clipped in a narrow column. */}
+      {/* The label gets its own row so it isn't clipped in a narrow column. */}
       <p className="truncate text-[12px] font-semibold tracking-wide text-[var(--color-ink-48)] uppercase">
         {limit.label}
       </p>
@@ -102,9 +100,8 @@ export function ComplianceStrip({ compliance }: { compliance: Compliance }) {
       aria-label="Hours of Service compliance"
       className="@container rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-white px-4 py-3.5"
     >
-      {/* Container query, not a viewport one: at desktop this strip sits in a
-          356px column, where a viewport-keyed `sm:grid-cols-4` gave four 66px
-          cells and clipped every label. */}
+      {/* Container query: on desktop this strip sits in a 356px column, too
+          narrow for four cells even at wide viewports. */}
       <div className="grid grid-cols-2 gap-x-5 gap-y-4 @xl:grid-cols-4">
         {limits.map((limit) => (
           <Gauge key={limit.label} limit={limit} />

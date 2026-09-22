@@ -1,7 +1,7 @@
 /**
  * All display formatting is pinned to the trip's own UTC offset, not the
  * viewer's. A log sheet is a legal record of the driver's local day; rendering
- * it in the grader's browser timezone would shift every line.
+ * it in the viewer's timezone would shift every line.
  */
 
 /** The instant shifted into the trip's own offset, so getUTC* reads as local. */

@@ -22,7 +22,7 @@ function renderList(overrides: Partial<Parameters<typeof StopList>[0]> = {}) {
 }
 
 describe('the stop list', () => {
-  it('shows every stop with its reason, which is the audit trail', () => {
+  it('shows every stop with its reason', () => {
     renderList()
     expect(screen.getByText('1. Start')).toBeInTheDocument()
     expect(screen.getByText('2. Daily reset')).toBeInTheDocument()

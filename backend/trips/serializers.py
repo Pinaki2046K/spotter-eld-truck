@@ -1,7 +1,7 @@
 """DRF serializers.
 
 The response is read-only and deeply nested, so input and output are separate
-classes rather than one ModelSerializer doing both jobs badly.
+classes.
 """
 
 from __future__ import annotations
@@ -39,8 +39,8 @@ class HomeTerminalDateTimeField(serializers.DateTimeField):
     """A DateTimeField that keeps the offset the driver submitted.
 
     DRF normalises every aware datetime to the current timezone, which is UTC
-    here, discarding the original offset. For this app that offset is data, not
-    presentation: log sheets run midnight to midnight in the *home terminal*
+    here, discarding the original offset. The offset matters because log sheets
+    run midnight to midnight in the *home terminal*
     timezone, so losing it splits the days at the wrong boundary and renders
     every time in UTC. A 06:00 departure in Chicago would be drawn as 11:00,
     and in India as 00:30 the previous night.

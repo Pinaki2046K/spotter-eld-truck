@@ -3,8 +3,7 @@
  *
  * The log sheet SVG cannot use `var(--color-…)`: svg2pdf.js resolves paint
  * attributes itself and never runs the cascade, so a CSS variable would export
- * as black. Keeping the hex here, next to a note pointing at the stylesheet, is
- * the honest version of that constraint.
+ * as black. Keep these in sync with index.css.
  */
 export const ACCENT = '#0066cc'
 export const INK = '#1d1d1f'

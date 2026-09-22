@@ -10,10 +10,7 @@ interface StopListProps {
   onSelect: (sequence: number) => void
 }
 
-/**
- * The primary accuracy artefact. This list, not the map, is what a reader uses
- * to check the schedule -- and it is the non-visual equivalent of the map.
- */
+/** Every stop with its time and reason; also the accessible alternative to the map. */
 export function StopList({
   stops,
   tzOffsetMinutes,

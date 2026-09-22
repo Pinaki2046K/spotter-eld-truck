@@ -302,10 +302,7 @@ function DateCell({ x, value, caption }: { x: number; value: string; caption: st
   )
 }
 
-/**
- * A ruled header line. Populated where we have data, left blank where we do
- * not -- placeholder text on a legal form would be worse than an empty line.
- */
+/** A ruled header line, left blank where there is no data. */
 function FilledLine({
   x,
   y,
@@ -319,8 +316,7 @@ function FilledLine({
   width: number
   label: string
   value?: string
-  /** Shown in place of a value, so the line reads as a form field left blank
-   *  on purpose rather than as data the app failed to produce. */
+  /** Shown in place of a value for a field the driver fills in by hand. */
   hint?: string
 }) {
   return (
@@ -471,7 +467,7 @@ function Grid() {
   )
 }
 
-/** The visible proof of the 24-hour invariant. */
+/** Hours per duty status; the column always totals 24. */
 function TotalsColumn({ totals, grandTotal }: { totals: [string, number][]; grandTotal: number }) {
   return (
     <g>
@@ -584,8 +580,7 @@ function Remarks({ remarks, layout }: { remarks: Remark[]; layout: ReturnType<ty
               {remark.number}
             </text>
             {/* Separate elements at fixed x, one plain string each: svg2pdf.js
-                collapses whitespace between a text node and a <tspan>, which ran
-                "00:00Dunbar, NE" together in the exported PDF. */}
+                collapses whitespace between a text node and a <tspan>. */}
             <text x={x + 16} y={y} fontSize="9" fill={RULE}>
               {remark.time}
             </text>

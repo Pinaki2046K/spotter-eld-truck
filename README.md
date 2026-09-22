@@ -1,6 +1,6 @@
 # Trip Planner & ELD Log Generator
 
-[![CI](https://github.com/Pinaki2046K/spotter-eld-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/Pinaki2046K/spotter-eld-planner/actions/workflows/ci.yml)
+[![CI](https://github.com/Pinaki2046K/spotter-eld-truck/actions/workflows/ci.yml/badge.svg)](https://github.com/Pinaki2046K/spotter-eld-truck/actions/workflows/ci.yml)
 
 Give it a start point, a pickup, a dropoff and the hours already used in the current 8-day
 cycle. It returns a routed map, every stop the Hours of Service rules force you to make, and
@@ -23,7 +23,7 @@ Chicago → St. Louis → Denver with 20 cycle hours used.
 ## Run it locally
 
 ```bash
-git clone <this repo> && cd spotter
+git clone https://github.com/Pinaki2046K/spotter-eld-truck.git && cd spotter-eld-truck
 export DEBUG=True SECRET_KEY=local-dev-only   # settings default to production-safe; opt in to dev
 (cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && .venv/bin/python manage.py migrate && .venv/bin/python manage.py seed_example_trip)
 (cd backend && .venv/bin/python manage.py runserver) &

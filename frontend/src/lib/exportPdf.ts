@@ -4,9 +4,8 @@ import 'svg2pdf.js'
 /**
  * Export the rendered log sheets to a vector PDF, entirely client side.
  *
- * Doing this in the browser keeps the backend free of a headless browser --
- * which no free-tier dyno wants to host -- and the sheets are already SVG, so
- * the output is vector rather than a screenshot.
+ * Doing this in the browser keeps a headless browser off the backend, and the
+ * sheets are already SVG, so the output is vector rather than a screenshot.
  */
 
 const A4_LANDSCAPE_WIDTH = 841.89

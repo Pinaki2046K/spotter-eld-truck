@@ -130,9 +130,9 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- CORS ------------------------------------------------------------------
-# The frontend is a separate origin (Vercel), so this is load-bearing, not
-# boilerplate.  Never "*" in production -- the exact Vercel domain, and no
-# *.vercel.app pattern either: that would admit every app hosted on Vercel.
+# The frontend is a separate origin (Vercel). Never "*" in production: list
+# the exact Vercel domain. A *.vercel.app pattern would admit every app hosted
+# on Vercel.
 CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_ALL_ORIGINS = DEBUG and not CORS_ALLOWED_ORIGINS
 

@@ -325,7 +325,7 @@ def test_a_retried_nominatim_request_is_throttled_too(monkeypatch):
 def test_health_answers_head_for_uptime_monitors(client):
     """UptimeRobot and most monitors probe with HEAD by default. @api_view
     narrows the allowed methods to exactly those it names, so HEAD has to be
-    listed; before it was, this returned 405."""
+    listed."""
     url = reverse("health")
 
     head = client.head(url)

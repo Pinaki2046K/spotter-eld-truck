@@ -263,7 +263,7 @@ def test_a_ten_hour_reset_is_not_described_as_the_break(standard_route, start):
 def test_unloading_does_not_wait_for_a_restart_when_the_cycle_ends_on_arrival(start):
     """Arriving at the dropoff with exactly 70 cycle hours used is not a reason
     to sit for 34 hours: unloading is on duty *not driving*, which 395.3(b)
-    allows past 70. Before the fix this trip ended two days later."""
+    allows past 70."""
     # 0.25 pre-trip + 1 h drive + 1 h loading + 8 h drive = 10.25 on-duty hours.
     route = two_leg_route(pickup_miles=55.0, dropoff_miles=440.0)
     plan = plan_trip(route, cycle_hours_used=59.75, start_datetime=start)

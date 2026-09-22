@@ -23,7 +23,7 @@ function stopsOnDay(stops: Stop[], day: LogDay, tzOffsetMinutes: number): Stop[]
   return stops.filter((stop) => localDateIso(stop.arrival_time, tzOffsetMinutes) === day.date)
 }
 
-/** "a 10-hour reset", "a 34-hour restart", or "2 resets" -- named for what actually happened. */
+/** "a 10-hour reset", "a 34-hour restart", or "2 resets". */
 function resetPhrase(resets: Stop[]): string {
   if (resets.length !== 1) return `${resets.length} resets`
   return `a ${BINDING_LABELS[resets[0].stop_type]}`

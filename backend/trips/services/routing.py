@@ -9,8 +9,7 @@ that key promotes it to primary, with OSRM still catching any failure, so two
 independent providers sit behind one interface if a commercial SLA is ever
 wanted. Unset -- the default -- and OSRM serves every route.
 
-The fallback is quiet by design, and quiet failure is its own hazard: every
-fall-through logs at WARNING with the upstream status and body, /api/health/
+Because the fallback is silent, every fall-through logs at WARNING with the upstream status and body, /api/health/
 reports which provider is live, and each trip records the provider that
 actually served it.
 """

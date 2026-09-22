@@ -3,7 +3,7 @@
 # The free web service spins down after 15 minutes idle, so the first request
 # after a quiet spell pays a cold start. That is accepted deliberately here:
 # the 750 free instance-hours are shared across the workspace, so uptime
-# pinging is switched on by hand at submission time rather than run constantly.
+# pinging is switched on by hand when needed rather than run constantly.
 services:
   - type: web
     name: spotter-eld-api

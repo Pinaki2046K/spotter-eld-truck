@@ -1,7 +1,7 @@
 """Seed the example trip at a fixed UUID.
 
 Run in the release command so `/api/trips/<EXAMPLE_TRIP_ID>/` always returns a
-complete plan -- even if Nominatim is rate-limiting the grader's first visit.
+complete plan, even while Nominatim is rate-limiting.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ class Command(BaseCommand):
 
         The release command reseeds on every deploy, so a fixture persisted
         before a field existed would otherwise survive forever with that field
-        empty -- and this is the trip a reviewer opens first.
+        empty.
         """
         trip = Trip.objects.filter(pk=trip_id).first()
         if trip is None or not trip.compliance:
